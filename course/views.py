@@ -1,9 +1,9 @@
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.core.paginator import Paginator
 from .models import GoogleDocument, ProcessingStatus
-from .tasks import check_for_new_docs
+from .tasks import check_for_new_docs, process_all_documents_with_rag
 import json
 
 def home(request):
@@ -26,6 +26,20 @@ def home(request):
     }
     return render(request, 'course/home.html', context)
 
+def document_detail(request, doc_id):
+    """View to show detailed document with structured content"""
+    document = get_object_or_404(GoogleDocument, id=doc_id)
+    
+    # Get structured content if available
+    structured_content = document.get_structured_content()
+    
+    context = {
+        'document': document,
+        'structured_content': structured_content,
+        'has_embeddings': bool(document.embeddings),
+    }
+    return render(request, 'course/document_detail.html', context)
+
 @require_http_methods(["POST"])
 def check_new_docs(request):
     """API endpoint to trigger checking for new docs"""
@@ -43,6 +57,23 @@ def check_new_docs(request):
             'message': str(e)
         }, status=500)
 
+@require_http_methods(["POST"])
+def process_documents_rag(request):
+    """API endpoint to trigger RAG processing for all documents"""
+    try:
+        # Trigger the Celery task
+        process_all_documents_with_rag.delay()
+        
+        return JsonResponse({
+            'status': 'success',
+            'message': 'Started RAG processing for all documents'
+        })
+    except Exception as e:
+        return JsonResponse({
+            'status': 'error',
+            'message': str(e)
+        }, status=500)
+
 @require_http_methods(["GET"])
 def get_status(request):
     """API endpoint to get current processing status"""
@@ -51,12 +82,14 @@ def get_status(request):
         return JsonResponse({
             'status': status.status,
             'message': status.message,
+            'current_stage': status.current_stage,
             'last_check': status.last_check.isoformat()
         })
     except ProcessingStatus.DoesNotExist:
         return JsonResponse({
             'status': 'idle',
-            'message': 'No processing started yet'
+            'message': 'No processing started yet',
+            'current_stage': ''
         })
 
 @require_http_methods(["GET"])
@@ -68,7 +101,9 @@ def get_documents(request):
         'id': doc.id,
         'title': doc.title,
         'content': doc.content[:200] + '...' if len(doc.content) > 200 else doc.content,
-        'processed_at': doc.processed_at.isoformat()
+        'processed_at': doc.processed_at.isoformat(),
+        'processing_completed': doc.processing_completed,
+        'has_structured_content': bool(doc.structured_content)
     } for doc in documents]
     
     return JsonResponse({'documents': docs_data})

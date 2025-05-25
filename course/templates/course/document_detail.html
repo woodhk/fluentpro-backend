@@ -1,0 +1,191 @@
+{% extends 'course/base.html' %}
+
+{% block title %}{{ document.title }} - Document Details{% endblock %}
+
+{% block content %}
+<div class="document-detail">
+    <div class="detail-header">
+        <h1>{{ document.title }}</h1>
+        <div class="detail-meta">
+            <span class="meta-item">
+                <strong>Extracted:</strong> {{ document.processed_at|date:"Y-m-d H:i:s" }}
+            </span>
+            <span class="meta-item">
+                <strong>Processing Status:</strong>
+                {% if document.processing_completed %}
+                    <span class="badge badge-success">Complete</span>
+                {% else %}
+                    <span class="badge badge-warning">Pending</span>
+                {% endif %}
+            </span>
+            {% if has_embeddings %}
+                <span class="meta-item">
+                    <strong>Embeddings:</strong> <span class="badge badge-info">Generated</span>
+                </span>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="content-tabs">
+        <button class="tab-button active" onclick="showTab('original')">Original Content</button>
+        {% if structured_content %}
+            <button class="tab-button" onclick="showTab('structured')">Structured Content</button>
+        {% endif %}
+    </div>
+    
+    <div id="original-content" class="tab-content active">
+        <h2>Original Document Content</h2>
+        <div class="document-text">{{ document.content|linebreaks }}</div>
+    </div>
+    
+    {% if structured_content %}
+    <div id="structured-content" class="tab-content">
+        <h2>LLM Processed Structured Content</h2>
+        
+        <div class="structured-section">
+            <h3>Introduction</h3>
+            <div class="section-content">{{ structured_content.introduction|linebreaks }}</div>
+        </div>
+        
+        <div class="structured-section">
+            <h3>Main Content</h3>
+            <div class="section-content">{{ structured_content.main_content|linebreaks }}</div>
+        </div>
+        
+        <div class="structured-section">
+            <h3>Conclusion</h3>
+            <div class="section-content">{{ structured_content.conclusion|linebreaks }}</div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <div class="actions">
+        <a href="{% url 'home' %}" class="btn">Back to Documents</a>
+    </div>
+</div>
+
+<style>
+    .document-detail {
+        max-width: 1000px;
+        margin: 0 auto;
+    }
+    
+    .detail-header {
+        background-color: white;
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 30px;
+    }
+    
+    .detail-header h1 {
+        margin-bottom: 20px;
+        color: #1a73e8;
+    }
+    
+    .detail-meta {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+    }
+    
+    .meta-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .badge-info {
+        background-color: #2196f3;
+        color: white;
+    }
+    
+    .content-tabs {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+    }
+    
+    .tab-button {
+        padding: 10px 20px;
+        background-color: #f0f0f0;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 16px;
+        transition: background-color 0.3s;
+    }
+    
+    .tab-button.active {
+        background-color: #4285f4;
+        color: white;
+    }
+    
+    .tab-button:hover:not(.active) {
+        background-color: #e0e0e0;
+    }
+    
+    .tab-content {
+        display: none;
+        background-color: white;
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .tab-content.active {
+        display: block;
+    }
+    
+    .document-text {
+        font-size: 16px;
+        line-height: 1.6;
+        color: #333;
+    }
+    
+    .structured-section {
+        margin-bottom: 30px;
+        padding: 20px;
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        border-left: 4px solid #4285f4;
+    }
+    
+    .structured-section h3 {
+        margin-top: 0;
+        margin-bottom: 15px;
+        color: #1a73e8;
+    }
+    
+    .section-content {
+        font-size: 16px;
+        line-height: 1.6;
+        color: #333;
+    }
+    
+    .actions {
+        margin-top: 30px;
+    }
+</style>
+
+<script>
+    function showTab(tabName) {
+        // Hide all tabs
+        document.querySelectorAll('.tab-content').forEach(tab => {
+            tab.classList.remove('active');
+        });
+        document.querySelectorAll('.tab-button').forEach(button => {
+            button.classList.remove('active');
+        });
+        
+        // Show selected tab
+        if (tabName === 'original') {
+            document.getElementById('original-content').classList.add('active');
+            document.querySelectorAll('.tab-button')[0].classList.add('active');
+        } else if (tabName === 'structured') {
+            document.getElementById('structured-content').classList.add('active');
+            document.querySelectorAll('.tab-button')[1].classList.add('active');
+        }
+    }
+</script>
+{% endblock %}
