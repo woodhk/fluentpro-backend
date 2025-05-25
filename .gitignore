@@ -30,3 +30,10 @@ token.pickle
 # OS files
 .DS_Store
 Thumbs.db
+
+#Redis cache
+*.rdb
+*.aof
+*.log
+*.rdb.gz
+*.aof.gz
