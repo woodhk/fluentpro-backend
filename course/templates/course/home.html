@@ -3,64 +3,93 @@
 
 {% block content %}
 {% csrf_token %}
-<div class="status-bar">
-    <div class="status-info">
-        <span class="status-indicator status-{{ status.status }}"></span>
-        <strong>Status:</strong> <span id="status-text">{{ status.get_status_display }}</span>
-        {% if status.message %}
-            - <span id="status-message">{{ status.message }}</span>
-        {% endif %}
-        {% if status.last_check %}
-            <br><small>Last check: <span id="last-check">{{ status.last_check|date:"Y-m-d H:i:s" }}</span></small>
-        {% endif %}
-    </div>
-    <div>
-        <button id="checkDocsBtn" class="btn" onclick="checkForNewDocs()">
-            Check for New Docs
-        </button>
-        <div class="loading-spinner" id="loadingSpinner"></div>
+<div class="status-section">
+    <div class="status-card">
+        <div class="status-header">
+            <div class="status-info">
+                <span class="status-indicator status-{{ status.status }}"></span>
+                <div class="status-details">
+                    <div class="status-main">
+                        <strong>Status:</strong> <span id="status-text">{{ status.get_status_display }}</span>
+                        {% if status.message %}
+                            - <span id="status-message">{{ status.message }}</span>
+                        {% endif %}
+                    </div>
+                    {% if status.last_check %}
+                        <div class="status-timestamp">
+                            Last check: <span id="last-check">{{ status.last_check|date:"Y-m-d H:i:s" }}</span>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="status-actions">
+                <button id="checkDocsBtn" class="btn btn-primary" onclick="checkForNewDocs()">
+                    Check for New Docs
+                </button>
+                <div class="loading-spinner" id="loadingSpinner"></div>
+            </div>
+        </div>
     </div>
 </div>
 
-<div id="documentsContainer">
-    {% if documents %}
-        <div class="documents-grid">
-            {% for doc in documents %}
-            <div class="document-card">
-                <h3 class="document-title">{{ doc.title }}</h3>
-                <div class="document-meta">
-                    Processed: {{ doc.processed_at|date:"Y-m-d H:i:s" }}
+<div class="content-section">
+    <div id="documentsContainer">
+        {% if documents %}
+            <div class="documents-header">
+                <h2>Documents</h2>
+                <div class="documents-count">
+                    {% if documents.paginator.count %}
+                        Showing {{ documents.start_index }}-{{ documents.end_index }} of {{ documents.paginator.count }} documents
+                    {% endif %}
                 </div>
-                <div class="document-content">{{ doc.content }}</div>
             </div>
-            {% endfor %}
-        </div>
-        
-        {% if documents.has_other_pages %}
-        <div class="pagination">
-            <span class="step-links">
-                {% if documents.has_previous %}
-                    <a href="?page=1">&laquo; first</a>
-                    <a href="?page={{ documents.previous_page_number }}">previous</a>
-                {% endif %}
-                
-                <span class="current">
-                    Page {{ documents.number }} of {{ documents.paginator.num_pages }}
-                </span>
-                
-                {% if documents.has_next %}
-                    <a href="?page={{ documents.next_page_number }}">next</a>
-                    <a href="?page={{ documents.paginator.num_pages }}">last &raquo;</a>
-                {% endif %}
-            </span>
-        </div>
+            
+            <div class="documents-grid">
+                {% for doc in documents %}
+                <div class="document-card">
+                    <div class="document-header">
+                        <h3 class="document-title">{{ doc.title }}</h3>
+                        <div class="document-meta">
+                            <span class="processed-date">{{ doc.processed_at|date:"M d, Y" }}</span>
+                            <span class="processed-time">{{ doc.processed_at|date:"H:i" }}</span>
+                        </div>
+                    </div>
+                    <div class="document-body">
+                        <div class="document-content">{{ doc.content }}</div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            {% if documents.has_other_pages %}
+            <div class="pagination-section">
+                <div class="pagination">
+                    <span class="step-links">
+                        {% if documents.has_previous %}
+                            <a href="?page=1" class="pagination-btn">&laquo; First</a>
+                            <a href="?page={{ documents.previous_page_number }}" class="pagination-btn">Previous</a>
+                        {% endif %}
+                        
+                        <span class="current-page">
+                            Page {{ documents.number }} of {{ documents.paginator.num_pages }}
+                        </span>
+                        
+                        {% if documents.has_next %}
+                            <a href="?page={{ documents.next_page_number }}" class="pagination-btn">Next</a>
+                            <a href="?page={{ documents.paginator.num_pages }}" class="pagination-btn">Last &raquo;</a>
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+            {% endif %}
+        {% else %}
+            <div class="empty-state">
+                <div class="empty-icon">📄</div>
+                <h2>No documents found yet</h2>
+                <p>Click "Check for New Docs" to start importing your Google Docs.</p>
+            </div>
         {% endif %}
-    {% else %}
-        <div class="empty-state">
-            <h2>No documents found yet</h2>
-            <p>Click "Check for New Docs" to start importing your Google Docs.</p>
-        </div>
-    {% endif %}
+    </div>
 </div>
 
 <script>
@@ -158,6 +187,8 @@
             const date = new Date(data.last_check);
             lastCheck.textContent = date.toLocaleString();
         }
+
     }
 </script>
+
 {% endblock %}

@@ -43,87 +43,213 @@
             border: none;
             padding: 12px 24px;
             font-size: 16px;
-            border-radius: 4px;
+            border-radius: 6px;
             cursor: pointer;
-            transition: background-color 0.3s;
+            transition: all 0.3s ease;
+            font-weight: 500;
         }
         
         .btn:hover {
             background-color: #357ae8;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(66, 133, 244, 0.3);
         }
         
         .btn:disabled {
             background-color: #ccc;
             cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
         }
         
-        .status-bar {
+        .btn-primary {
+            background-color: #4285f4;
+        }
+        
+        /* Status Section */
+        .status-section {
+            margin-bottom: 32px;
+        }
+        
+        .status-card {
             background-color: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin-bottom: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            overflow: hidden;
+        }
+        
+        .status-header {
+            padding: 24px;
             display: flex;
             align-items: center;
             justify-content: space-between;
+            gap: 20px;
         }
         
         .status-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
             flex: 1;
-            margin-right: 20px;
+        }
+        
+        .status-details {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        
+        .status-main {
+            font-size: 16px;
+            font-weight: 500;
+        }
+        
+        .status-timestamp {
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .status-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
         
         .status-indicator {
             display: inline-block;
-            width: 12px;
-            height: 12px;
+            width: 14px;
+            height: 14px;
             border-radius: 50%;
-            margin-right: 8px;
+            flex-shrink: 0;
         }
         
         .status-idle { background-color: #888; }
-        .status-processing { background-color: #ff9800; }
+        .status-processing { 
+            background-color: #ff9800; 
+            animation: pulse 2s infinite;
+        }
         .status-completed { background-color: #4caf50; }
         .status-error { background-color: #f44336; }
         
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        /* Content Section */
+        .content-section {
+            margin-bottom: 32px;
+        }
+        
+        .documents-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #e8eaed;
+        }
+        
+        .documents-header h2 {
+            font-size: 24px;
+            font-weight: 600;
+            color: #202124;
+            margin: 0;
+        }
+        
+        .documents-count {
+            font-size: 14px;
+            color: #5f6368;
+            font-weight: 500;
+        }
+        
         .documents-grid {
             display: grid;
-            gap: 20px;
+            gap: 24px;
+            grid-template-columns: 1fr;
         }
         
         .document-card {
             background-color: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            transition: transform 0.2s, box-shadow 0.2s;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            transition: all 0.3s ease;
+            overflow: hidden;
+            border: 1px solid #e8eaed;
         }
         
         .document-card:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+            border-color: #dadce0;
+        }
+        
+        .document-header {
+            padding: 20px 24px 16px 24px;
+            border-bottom: 1px solid #f1f3f4;
+            background-color: #fafbfc;
         }
         
         .document-title {
-            font-size: 1.2rem;
+            font-size: 18px;
             font-weight: 600;
-            margin-bottom: 10px;
+            margin: 0 0 8px 0;
             color: #1a73e8;
+            line-height: 1.3;
         }
         
         .document-meta {
-            font-size: 0.9rem;
-            color: #666;
-            margin-bottom: 15px;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            font-size: 14px;
+            color: #5f6368;
+        }
+        
+        .processed-date {
+            font-weight: 500;
+        }
+        
+        .processed-time {
+            padding: 2px 8px;
+            background-color: #e8f0fe;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+            color: #1a73e8;
+        }
+        
+        .document-body {
+            padding: 24px;
         }
         
         .document-content {
-            color: #444;
-            line-height: 1.5;
+            color: #3c4043;
+            line-height: 1.6;
             white-space: pre-wrap;
             word-wrap: break-word;
-            max-height: 300px;
+            max-height: 400px;
             overflow-y: auto;
+            font-size: 15px;
+        }
+        
+        .document-content::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .document-content::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 3px;
+        }
+        
+        .document-content::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 3px;
+        }
+        
+        .document-content::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
         }
         
         .loading-spinner {
@@ -134,7 +260,6 @@
             border-top: 3px solid #4285f4;
             border-radius: 50%;
             animation: spin 1s linear infinite;
-            margin-left: 10px;
         }
         
         @keyframes spin {
@@ -142,42 +267,113 @@
             100% { transform: rotate(360deg); }
         }
         
+        /* Pagination */
+        .pagination-section {
+            margin-top: 32px;
+            padding-top: 24px;
+            border-top: 1px solid #e8eaed;
+        }
+        
         .pagination {
-            margin-top: 30px;
             text-align: center;
         }
         
-        .pagination a {
-            color: #4285f4;
-            padding: 8px 16px;
+        .pagination-btn {
+            color: #1a73e8;
+            padding: 10px 16px;
             text-decoration: none;
             margin: 0 4px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+            border: 1px solid #dadce0;
+            border-radius: 6px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            display: inline-block;
         }
         
-        .pagination a:hover {
-            background-color: #4285f4;
+        .pagination-btn:hover {
+            background-color: #1a73e8;
             color: white;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(26, 115, 232, 0.3);
         }
         
-        .pagination .current {
-            padding: 8px 16px;
-            margin: 0 4px;
-            background-color: #4285f4;
+        .current-page {
+            padding: 10px 16px;
+            margin: 0 8px;
+            background-color: #1a73e8;
             color: white;
-            border-radius: 4px;
+            border-radius: 6px;
+            font-weight: 600;
+            display: inline-block;
         }
         
+        /* Empty State */
         .empty-state {
             text-align: center;
-            padding: 60px 20px;
-            color: #666;
+            padding: 80px 20px;
+            color: #5f6368;
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.7;
         }
         
         .empty-state h2 {
-            font-size: 1.5rem;
-            margin-bottom: 10px;
+            font-size: 24px;
+            margin-bottom: 12px;
+            color: #3c4043;
+            font-weight: 500;
+        }
+        
+        .empty-state p {
+            font-size: 16px;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .container {
+                padding: 16px;
+            }
+            
+            .status-header {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 16px;
+            }
+            
+            .status-info {
+                justify-content: center;
+            }
+            
+            .documents-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+            }
+            
+            .document-header {
+                padding: 16px 20px 12px 20px;
+            }
+            
+            .document-body {
+                padding: 20px;
+            }
+            
+            .document-title {
+                font-size: 16px;
+            }
+            
+            .pagination-btn {
+                padding: 8px 12px;
+                font-size: 14px;
+            }
         }
     </style>
     {% block extra_css %}{% endblock %}
