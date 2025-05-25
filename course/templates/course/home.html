@@ -1,0 +1,163 @@
+{% extends 'course/base.html' %}
+{% load static %}
+
+{% block content %}
+{% csrf_token %}
+<div class="status-bar">
+    <div class="status-info">
+        <span class="status-indicator status-{{ status.status }}"></span>
+        <strong>Status:</strong> <span id="status-text">{{ status.get_status_display }}</span>
+        {% if status.message %}
+            - <span id="status-message">{{ status.message }}</span>
+        {% endif %}
+        {% if status.last_check %}
+            <br><small>Last check: <span id="last-check">{{ status.last_check|date:"Y-m-d H:i:s" }}</span></small>
+        {% endif %}
+    </div>
+    <div>
+        <button id="checkDocsBtn" class="btn" onclick="checkForNewDocs()">
+            Check for New Docs
+        </button>
+        <div class="loading-spinner" id="loadingSpinner"></div>
+    </div>
+</div>
+
+<div id="documentsContainer">
+    {% if documents %}
+        <div class="documents-grid">
+            {% for doc in documents %}
+            <div class="document-card">
+                <h3 class="document-title">{{ doc.title }}</h3>
+                <div class="document-meta">
+                    Processed: {{ doc.processed_at|date:"Y-m-d H:i:s" }}
+                </div>
+                <div class="document-content">{{ doc.content }}</div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        {% if documents.has_other_pages %}
+        <div class="pagination">
+            <span class="step-links">
+                {% if documents.has_previous %}
+                    <a href="?page=1">&laquo; first</a>
+                    <a href="?page={{ documents.previous_page_number }}">previous</a>
+                {% endif %}
+                
+                <span class="current">
+                    Page {{ documents.number }} of {{ documents.paginator.num_pages }}
+                </span>
+                
+                {% if documents.has_next %}
+                    <a href="?page={{ documents.next_page_number }}">next</a>
+                    <a href="?page={{ documents.paginator.num_pages }}">last &raquo;</a>
+                {% endif %}
+            </span>
+        </div>
+        {% endif %}
+    {% else %}
+        <div class="empty-state">
+            <h2>No documents found yet</h2>
+            <p>Click "Check for New Docs" to start importing your Google Docs.</p>
+        </div>
+    {% endif %}
+</div>
+
+<script>
+    let statusCheckInterval;
+    
+    function getCSRFToken() {
+        return document.querySelector('[name=csrfmiddlewaretoken]').value;
+    }
+    
+    async function checkForNewDocs() {
+        const btn = document.getElementById('checkDocsBtn');
+        const spinner = document.getElementById('loadingSpinner');
+        
+        btn.disabled = true;
+        spinner.style.display = 'inline-block';
+        
+        try {
+            const response = await fetch('/api/check-new-docs/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCSRFToken(),
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (response.ok) {
+                // Start polling for status
+                startStatusPolling();
+            } else {
+                alert('Error starting document check');
+                btn.disabled = false;
+                spinner.style.display = 'none';
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Error starting document check');
+            btn.disabled = false;
+            spinner.style.display = 'none';
+        }
+    }
+    
+    function startStatusPolling() {
+        statusCheckInterval = setInterval(checkStatus, 2000); // Check every 2 seconds
+    }
+    
+    async function checkStatus() {
+        try {
+            const response = await fetch('/api/status/');
+            const data = await response.json();
+            
+            updateStatusDisplay(data);
+            
+            if (data.status === 'completed' || data.status === 'error') {
+                clearInterval(statusCheckInterval);
+                document.getElementById('checkDocsBtn').disabled = false;
+                document.getElementById('loadingSpinner').style.display = 'none';
+                
+                if (data.status === 'completed') {
+                    // Reload the page to show new documents
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                }
+            }
+        } catch (error) {
+            console.error('Error checking status:', error);
+        }
+    }
+    
+    function updateStatusDisplay(data) {
+        const statusIndicator = document.querySelector('.status-indicator');
+        const statusText = document.getElementById('status-text');
+        const statusMessage = document.getElementById('status-message');
+        const lastCheck = document.getElementById('last-check');
+        
+        // Update indicator class
+        statusIndicator.className = 'status-indicator status-' + data.status;
+        
+        // Update status text
+        const statusDisplayMap = {
+            'idle': 'Idle',
+            'processing': 'Processing',
+            'completed': 'Completed',
+            'error': 'Error'
+        };
+        statusText.textContent = statusDisplayMap[data.status] || data.status;
+        
+        // Update message
+        if (statusMessage) {
+            statusMessage.textContent = data.message || '';
+        }
+        
+        // Update last check time
+        if (lastCheck && data.last_check) {
+            const date = new Date(data.last_check);
+            lastCheck.textContent = date.toLocaleString();
+        }
+    }
+</script>
+{% endblock %}

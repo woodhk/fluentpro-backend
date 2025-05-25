@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 from pathlib import Path
+from celery.schedules import crontab
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -38,6 +39,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "course",
+    "django_celery_beat",
 ]
 
 MIDDLEWARE = [
@@ -122,3 +124,24 @@ STATIC_URL = "static/"
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# Celery Configuration
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = TIME_ZONE
+
+# Google API Configuration
+GOOGLE_DOCS_CREDENTIALS_FILE = BASE_DIR / 'credentials.json'
+GOOGLE_DOCS_TOKEN_FILE = BASE_DIR / 'token.json'
+GOOGLE_DOCS_SCOPES = ['https://www.googleapis.com/auth/documents.readonly',
+                       'https://www.googleapis.com/auth/drive.readonly']
+
+CELERY_BEAT_SCHEDULE = {
+    'check-new-docs-every-5-minutes': {
+        'task': 'course.tasks.check_for_new_docs',
+        'schedule': crontab(minute='*/5'),  # Every 5 minutes
+    },
+}
