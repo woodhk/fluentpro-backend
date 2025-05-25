@@ -1,5 +1,6 @@
 # Virtual environment
 venv/
+env/
 
 # Python cache
 __pycache__/
@@ -14,6 +15,11 @@ db.sqlite3
 .env
 .env.local
 
+# Google API credentials (ADD THESE LINES)
+credentials.json
+token.json
+token.pickle
+
 # IDE files
 .vscode/
 .idea/
@@ -24,6 +30,3 @@ db.sqlite3
 # OS files
 .DS_Store
 Thumbs.db
-
-token.json
-credentials.json
