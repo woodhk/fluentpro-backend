@@ -216,3 +216,37 @@ def get_generation_progress(request, document_id):
             'current_step': '',
             'error_message': ''
         })
+
+@require_http_methods(["POST"])
+def clear_docs(request):
+    """API endpoint to clear all documents from memory"""
+    try:
+        # Count documents before deletion
+        doc_count = GoogleDocument.objects.count()
+        
+        # Delete all documents (this will cascade to related objects)
+        GoogleDocument.objects.all().delete()
+        
+        # Reset processing status
+        try:
+            status = ProcessingStatus.objects.get(pk=1)
+            status.status = 'idle'
+            status.message = f'Cleared {doc_count} documents from memory'
+            status.current_stage = ''
+            status.save()
+        except ProcessingStatus.DoesNotExist:
+            ProcessingStatus.objects.create(
+                pk=1,
+                status='idle',
+                message=f'Cleared {doc_count} documents from memory'
+            )
+        
+        return JsonResponse({
+            'status': 'success',
+            'message': f'Successfully cleared {doc_count} documents from memory'
+        })
+    except Exception as e:
+        return JsonResponse({
+            'status': 'error',
+            'message': str(e)
+        }, status=500)

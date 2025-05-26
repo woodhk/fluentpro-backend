@@ -27,6 +27,9 @@
         <button id="generateCoursesBtn" class="btn btn-tertiary" onclick="generateCourses()">
           Generate Courses
        </button>
+        <button id="clearDocsBtn" class="btn btn-danger" onclick="clearAllDocs()">
+            Clear All Docs
+        </button>
         <div class="loading-spinner" id="loadingSpinner"></div>
     </div>
 </div>
@@ -168,12 +171,21 @@
     .document-card.processed {
         border-left: 4px solid #4caf50;
     }
+    
     .btn-tertiary {
-    background-color: #ea4335;
+        background-color: #ea4335;
     }
 
     .btn-tertiary:hover {
         background-color: #d33b2c;
+    }
+
+    .btn-danger {
+        background-color: #dc3545;
+    }
+
+    .btn-danger:hover {
+        background-color: #c82333;
     }
 
     .workflow-details {
@@ -365,5 +377,41 @@
         spinner.style.display = 'none';
     }
 }
+    async function clearAllDocs() {
+        if (!confirm('Are you sure you want to delete ALL documents from memory? This action cannot be undone.')) {
+            return;
+        }
+        
+        const btn = document.getElementById('clearDocsBtn');
+        const spinner = document.getElementById('loadingSpinner');
+        
+        btn.disabled = true;
+        spinner.style.display = 'inline-block';
+        
+        try {
+            const response = await fetch('/api/clear-docs/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCSRFToken(),
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok) {
+                alert(data.message);
+                window.location.reload();
+            } else {
+                alert('Error clearing documents: ' + data.message);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Error clearing documents');
+        } finally {
+            btn.disabled = false;
+            spinner.style.display = 'none';
+        }
+    }
 </script>
 {% endblock %}

@@ -151,9 +151,9 @@ GOOGLE_DOCS_SCOPES = ['https://www.googleapis.com/auth/documents.readonly',
                        'https://www.googleapis.com/auth/drive.readonly']
 
 CELERY_BEAT_SCHEDULE = {
-    'check-new-docs-every-5-minutes': {
+    'check-new-docs-every-5-hours': {
         'task': 'course.tasks.check_for_new_docs',
-        'schedule': crontab(minute='*/5'),  # Every 5 minutes
+        'schedule': crontab(minute=0, hour='*/5'),  # Every 5 hours
     },
 }
 

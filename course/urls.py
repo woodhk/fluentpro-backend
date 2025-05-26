@@ -13,6 +13,7 @@ urlpatterns = [
     path('api/process-rag/', views.process_documents_rag, name='process_documents_rag'),
     path('api/generate-courses/', views.generate_courses, name='generate_courses'),
     path('api/export-courses/', views.export_courses, name='export_courses'),
+    path('api/clear-docs/', views.clear_docs, name='clear_docs'),
     path('api/status/', views.get_status, name='get_status'),
     path('api/documents/', views.get_documents, name='get_documents'),
     path('api/generation-progress/<int:document_id>/', views.get_generation_progress, name='get_generation_progress'),
