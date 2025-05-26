@@ -24,6 +24,9 @@
         <button id="processRagBtn" class="btn btn-secondary" onclick="processWithRAG()">
             Process All with RAG
         </button>
+        <button id="generateCoursesBtn" class="btn btn-tertiary" onclick="generateCourses()">
+          Generate Courses
+       </button>
         <div class="loading-spinner" id="loadingSpinner"></div>
     </div>
 </div>
@@ -37,7 +40,19 @@
     <h2>Step 2: LLM Processing & Verbatim Display</h2>
     <p>Documents are embedded using OpenAI and processed through LangGraph with Claude Sonnet to extract structured content.</p>
 </div>
-
+<div class="workflow-section">
+  <h2>Step 3: Course & Lesson Generation</h2>
+  <p>Documents are processed through a complex LangGraph workflow with multiple LLMs to generate structured courses and lessons.</p>
+  <div class="workflow-details">
+      <ul>
+          <li><strong>Orchestrator:</strong> Claude analyzes content and identifies topic-description pairs</li>
+          <li><strong>Parallel Workers:</strong> Gemini Pro generates lessons for each topic</li>
+          <li><strong>Evaluator:</strong> Claude validates lesson quality and structure</li>
+          <li><strong>Worker 2:</strong> Gemini Flash expands lessons with full details</li>
+          <li><strong>Aggregator:</strong> Combines all courses for export</li>
+      </ul>
+  </div>
+</div>
 <div id="documentsContainer">
     {% if documents %}
         <div class="documents-grid">
@@ -152,6 +167,37 @@
     
     .document-card.processed {
         border-left: 4px solid #4caf50;
+    }
+    .btn-tertiary {
+    background-color: #ea4335;
+    }
+
+    .btn-tertiary:hover {
+        background-color: #d33b2c;
+    }
+
+    .workflow-details {
+        margin-top: 15px;
+        padding-left: 20px;
+    }
+
+    .workflow-details ul {
+        list-style-type: none;
+        padding: 0;
+    }
+
+    .workflow-details li {
+        margin-bottom: 8px;
+        padding-left: 20px;
+        position: relative;
+    }
+
+    .workflow-details li:before {
+        content: "→";
+        position: absolute;
+        left: 0;
+        color: #4285f4;
+        font-weight: bold;
     }
 </style>
 
@@ -287,5 +333,37 @@
             lastCheck.textContent = date.toLocaleString();
         }
     }
+    async function generateCourses() {
+    const btn = document.getElementById('generateCoursesBtn');
+    const spinner = document.getElementById('loadingSpinner');
+    
+    btn.disabled = true;
+    spinner.style.display = 'inline-block';
+    
+    try {
+        const response = await fetch('/api/generate-courses/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCSRFToken(),
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: 'document_id='  // Generate for all documents
+        });
+        
+        if (response.ok) {
+            startStatusPolling();
+            alert('Course generation started! This may take several minutes.');
+        } else {
+            alert('Error starting course generation');
+            btn.disabled = false;
+            spinner.style.display = 'none';
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error starting course generation');
+        btn.disabled = false;
+        spinner.style.display = 'none';
+    }
+}
 </script>
 {% endblock %}

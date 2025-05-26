@@ -135,6 +135,15 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
 
+# Fix for macOS forking issues - use threads instead of fork
+CELERY_WORKER_POOL = 'threads'
+CELERY_WORKER_CONCURRENCY = 4  # Adjust based on your needs
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+
+# Alternative: Use eventlet for better async performance (uncomment if you prefer)
+# CELERY_WORKER_POOL = 'eventlet'
+# CELERY_WORKER_CONCURRENCY = 100
+
 # Google API Configuration
 GOOGLE_DOCS_CREDENTIALS_FILE = BASE_DIR / 'credentials.json'
 GOOGLE_DOCS_TOKEN_FILE = BASE_DIR / 'token.json'
@@ -150,3 +159,4 @@ CELERY_BEAT_SCHEDULE = {
 
 OPENAI_API_KEY = config('OPENAI_API_KEY', default='')
 ANTHROPIC_API_KEY = config('ANTHROPIC_API_KEY', default='')
+GOOGLE_GEMINI_API_KEY = config('GOOGLE_GEMINI_API_KEY', default='')

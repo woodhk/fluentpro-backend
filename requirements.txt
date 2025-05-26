@@ -11,8 +11,11 @@ langchain
 langchain-anthropic
 langchain-openai
 openai
+langchain-google-genai
 anthropic
+google-generativeai
 pydantic
 numpy
 tiktoken
 python-dotenv
+eventlet>=0.33.0

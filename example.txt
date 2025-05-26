@@ -1,0 +1,181 @@
+Parallelization
+@task
+def call_llm_1(topic: str):
+    """First LLM call to generate initial joke"""
+    msg = llm.invoke(f"Write a joke about {topic}")
+    return msg.content
+
+
+@task
+def call_llm_2(topic: str):
+    """Second LLM call to generate story"""
+    msg = llm.invoke(f"Write a story about {topic}")
+    return msg.content
+
+
+@task
+def call_llm_3(topic):
+    """Third LLM call to generate poem"""
+    msg = llm.invoke(f"Write a poem about {topic}")
+    return msg.content
+
+
+@task
+def aggregator(topic, joke, story, poem):
+    """Combine the joke and story into a single output"""
+
+    combined = f"Here's a story, joke, and poem about {topic}!\n\n"
+    combined += f"STORY:\n{story}\n\n"
+    combined += f"JOKE:\n{joke}\n\n"
+    combined += f"POEM:\n{poem}"
+    return combined
+
+
+# Build workflow
+@entrypoint()
+def parallel_workflow(topic: str):
+    joke_fut = call_llm_1(topic)
+    story_fut = call_llm_2(topic)
+    poem_fut = call_llm_3(topic)
+    return aggregator(
+        topic, joke_fut.result(), story_fut.result(), poem_fut.result()
+    ).result()
+
+# Invoke
+for step in parallel_workflow.stream("cats", stream_mode="updates"):
+    print(step)
+    print("\n")
+
+---
+
+Orchestrator-Worker
+from typing import List
+
+
+# Schema for structured output to use in planning
+class Section(BaseModel):
+    name: str = Field(
+        description="Name for this section of the report.",
+    )
+    description: str = Field(
+        description="Brief overview of the main topics and concepts to be covered in this section.",
+    )
+
+
+class Sections(BaseModel):
+    sections: List[Section] = Field(
+        description="Sections of the report.",
+    )
+
+
+# Augment the LLM with schema for structured output
+planner = llm.with_structured_output(Sections)
+
+
+@task
+def orchestrator(topic: str):
+    """Orchestrator that generates a plan for the report"""
+    # Generate queries
+    report_sections = planner.invoke(
+        [
+            SystemMessage(content="Generate a plan for the report."),
+            HumanMessage(content=f"Here is the report topic: {topic}"),
+        ]
+    )
+
+    return report_sections.sections
+
+
+@task
+def llm_call(section: Section):
+    """Worker writes a section of the report"""
+
+    # Generate section
+    result = llm.invoke(
+        [
+            SystemMessage(content="Write a report section."),
+            HumanMessage(
+                content=f"Here is the section name: {section.name} and description: {section.description}"
+            ),
+        ]
+    )
+
+    # Write the updated section to completed sections
+    return result.content
+
+
+@task
+def synthesizer(completed_sections: list[str]):
+    """Synthesize full report from sections"""
+    final_report = "\n\n---\n\n".join(completed_sections)
+    return final_report
+
+
+@entrypoint()
+def orchestrator_worker(topic: str):
+    sections = orchestrator(topic).result()
+    section_futures = [llm_call(section) for section in sections]
+    final_report = synthesizer(
+        [section_fut.result() for section_fut in section_futures]
+    ).result()
+    return final_report
+
+# Invoke
+report = orchestrator_worker.invoke("Create a report on LLM scaling laws")
+from IPython.display import Markdown
+Markdown(report)
+
+---
+
+Evaluator Optimizer:
+# Schema for structured output to use in evaluation
+class Feedback(BaseModel):
+    grade: Literal["funny", "not funny"] = Field(
+        description="Decide if the joke is funny or not.",
+    )
+    feedback: str = Field(
+        description="If the joke is not funny, provide feedback on how to improve it.",
+    )
+
+
+# Augment the LLM with schema for structured output
+evaluator = llm.with_structured_output(Feedback)
+
+
+# Nodes
+@task
+def llm_call_generator(topic: str, feedback: Feedback):
+    """LLM generates a joke"""
+    if feedback:
+        msg = llm.invoke(
+            f"Write a joke about {topic} but take into account the feedback: {feedback}"
+        )
+    else:
+        msg = llm.invoke(f"Write a joke about {topic}")
+    return msg.content
+
+
+@task
+def llm_call_evaluator(joke: str):
+    """LLM evaluates the joke"""
+    feedback = evaluator.invoke(f"Grade the joke {joke}")
+    return feedback
+
+
+@entrypoint()
+def optimizer_workflow(topic: str):
+    feedback = None
+    while True:
+        joke = llm_call_generator(topic, feedback).result()
+        feedback = llm_call_evaluator(joke).result()
+        if feedback.grade == "funny":
+            break
+
+    return joke
+
+# Invoke
+for step in optimizer_workflow.stream("Cats", stream_mode="updates"):
+    print(step)
+    print("\n")
+
+

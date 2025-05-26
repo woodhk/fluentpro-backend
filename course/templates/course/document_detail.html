@@ -58,6 +58,27 @@
         </div>
     </div>
     {% endif %}
+    {% if document.processing_completed and structured_content %}
+<div class="generation-section">
+    <h2>Course Generation</h2>
+    {% if document.courses.exists %}
+        <p>{{ document.courses.count }} course(s) have been generated from this document.</p>
+        <a href="{% url 'courses_list' %}" class="btn">View Courses</a>
+    {% else %}
+        <p>No courses generated yet. Click below to start the course generation workflow.</p>
+        <button class="btn btn-primary" onclick="generateCoursesForDocument('{{ document.id }}')">
+            Generate Courses
+        </button>
+        <div id="generation-status" style="margin-top: 20px; display: none;">
+            <div class="status-box">
+                <strong>Status:</strong> <span id="gen-status">Initializing...</span><br>
+                <strong>Step:</strong> <span id="gen-step">Starting workflow...</span>
+                <div class="loading-spinner" style="display: inline-block; margin-left: 10px;"></div>
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endif %}
     
     <div class="actions">
         <a href="{% url 'home' %}" class="btn">Back to Documents</a>
@@ -166,9 +187,28 @@
     .actions {
         margin-top: 30px;
     }
+    .generation-section {
+    margin-top: 30px;
+    padding: 20px;
+    background-color: #f0f7ff;
+    border-radius: 8px;
+    border: 1px solid #4285f4;
+    }
+
+    .status-box {
+        padding: 15px;
+        background: white;
+        border-radius: 6px;
+        border: 1px solid #dadce0;
+    }
 </style>
 
 <script>
+    function getCSRFToken() {
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+        return csrfToken ? csrfToken.value : '{{ csrf_token }}';
+    }
+
     function showTab(tabName) {
         // Hide all tabs
         document.querySelectorAll('.tab-content').forEach(tab => {
@@ -187,5 +227,64 @@
             document.querySelectorAll('.tab-button')[1].classList.add('active');
         }
     }
+    async function generateCoursesForDocument(documentId) {
+    if (!confirm('Generate courses for this document? This may take several minutes.')) {
+        return;
+    }
+    
+    const statusDiv = document.getElementById('generation-status');
+    statusDiv.style.display = 'block';
+    
+    try {
+        const response = await fetch('/api/generate-courses/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCSRFToken(),
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: `document_id=${documentId}`
+        });
+        
+        if (response.ok) {
+            // Start polling for progress
+            pollGenerationProgress(documentId);
+        } else {
+            alert('Error starting course generation');
+            statusDiv.style.display = 'none';
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error starting course generation');
+        statusDiv.style.display = 'none';
+    }
+}
+
+async function pollGenerationProgress(documentId) {
+    const statusSpan = document.getElementById('gen-status');
+    const stepSpan = document.getElementById('gen-step');
+    
+    const interval = setInterval(async () => {
+        try {
+            const response = await fetch(`/api/generation-progress/${documentId}/`);
+            const data = await response.json();
+            
+            statusSpan.textContent = data.status;
+            stepSpan.textContent = data.current_step || 'Processing...';
+            
+            if (data.status === 'completed') {
+                clearInterval(interval);
+                alert('Course generation completed!');
+                window.location.reload();
+            } else if (data.status === 'error') {
+                clearInterval(interval);
+                alert('Error: ' + data.error_message);
+                document.getElementById('generation-status').style.display = 'none';
+            }
+        } catch (error) {
+            console.error('Error polling status:', error);
+        }
+    }, 3000); // Poll every 3 seconds
+}
 </script>
+{% csrf_token %}
 {% endblock %}
