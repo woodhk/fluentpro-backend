@@ -35,11 +35,11 @@ class LessonIntro(BaseModel):
     lesson_number: int = Field(description="Sequential lesson number")
     lesson_title: str = Field(description="Title of the lesson")
     lesson_introduction: str = Field(description="Introduction paragraph for the lesson")
-    is_bonus: bool = Field(default=False, description="Whether this is a bonus lesson")
 
 class CourseWithLessons(BaseModel):
     """Course with its lessons"""
     course_name: str = Field(description="Name of the course")
+    course_description: str = Field(description="Description of the course")
     lessons: List[LessonIntro] = Field(description="List of lessons in the course")
 
 class EvaluationResult(BaseModel):
@@ -60,7 +60,6 @@ class FullLesson(BaseModel):
     skill_aims: List[str] = Field(description="List of skill aims")
     language_learning_aims: List[LanguageLearningAim]
     lesson_summary: List[str] = Field(description="Summary points")
-    is_bonus: bool = False
 
 class CourseWithFullLessons(BaseModel):
     """Course with fully detailed lessons"""
@@ -99,7 +98,7 @@ class CourseGenerationWorkflow:
     def __init__(self):
         # Initialize LLMs with correct model names
         self.orchestrator_llm = ChatAnthropic(
-            model="claude-3-5-sonnet-20241022",
+            model="claude-sonnet-4-20250514",
             anthropic_api_key=settings.ANTHROPIC_API_KEY,
             max_tokens=8192,
             temperature=0.3
@@ -107,7 +106,7 @@ class CourseGenerationWorkflow:
         
         # Fixed model names for Google Gemini
         self.worker1_llm = ChatGoogleGenerativeAI(
-            model="gemini-1.5-pro",  # Fixed model name
+            model="gemini-2.5-pro-preview-05-06",  # Fixed model name
             google_api_key=settings.GOOGLE_GEMINI_API_KEY,
             temperature=0.5,
             max_output_tokens=8192,
@@ -116,7 +115,7 @@ class CourseGenerationWorkflow:
         )
         
         self.evaluator_llm = ChatAnthropic(
-            model="claude-3-5-sonnet-20241022",
+            model="claude-sonnet-4-20250514",
             anthropic_api_key=settings.ANTHROPIC_API_KEY,
             max_tokens=4096,
             temperature=0
@@ -174,12 +173,14 @@ class CourseGenerationWorkflow:
         
         try:
             # Extract role and industry from introduction
-            intro_prompt = f"""Analyze this introduction and extract the professional role and industry it's intended for:
+            intro_prompt = f"""
+            Analyze this introduction and extract the professional role and industry it's intended for:
 
-Introduction:
-{state['introduction']}
+            Introduction:
+            {state['introduction']}
 
-Extract the specific job role/profession and the industry/sector."""
+            Extract the specific job role/profession and the industry/sector.
+            """
 
             role_industry_llm = self.orchestrator_llm.with_structured_output(RoleIndustry)
             role_industry = role_industry_llm.invoke([
@@ -188,16 +189,18 @@ Extract the specific job role/profession and the industry/sector."""
             ])
             
             # Extract topic-description pairs from main content
-            pairs_prompt = f"""Analyze this content and identify all distinct topic-description pairs. Each topic should be a specific speaking scenario or situation that a {role_industry.role} in {role_industry.industry} would encounter.
+            pairs_prompt = f"""
+            Identify all the distinct topic-description pairs in the content below. Each topic-description in the content below is a specific speaking scenario or situation that a {role_industry.role} in {role_industry.industry} would encounter.
 
-Content:
-{state['main_content']}
+            Content:
+            {state['main_content']}
 
-Extract each distinct topic with its corresponding description. These should be practical, real-world speaking scenarios."""
+            Extract each distinct topic with its corresponding description VERBATIM.
+            """
 
             orchestrator_output_llm = self.orchestrator_llm.with_structured_output(OrchestratorOutput)
             orchestrator_output = orchestrator_output_llm.invoke([
-                SystemMessage(content="You are an expert at analyzing professional communication scenarios."),
+                SystemMessage(content=f"You are a subject matter expert for {role_industry.role} professionals in the {role_industry.industry} industry, analysing a report for every task that involves speaking/workplace conversations."),
                 HumanMessage(content=pairs_prompt)
             ])
             
@@ -254,6 +257,7 @@ Extract each distinct topic with its corresponding description. These should be 
                         "index": idx,
                         "error": str(e),
                         "course_name": "Error",
+                        "course_description": "Error occurred during processing",
                         "lessons": []
                     })
         
@@ -282,25 +286,29 @@ Extract each distinct topic with its corresponding description. These should be 
     
     def _process_single_topic(self, topic_pair: Dict[str, str], role: str, industry: str, index: int) -> Dict[str, Any]:
         """Process a single topic-description pair"""
-        prompt = f"""You are a subject matter expert for {role} professionals in the {industry} industry.
+        prompt = f"""
+        Your task is to analyse the topic-description pair and create a course that breaks down the topic-description pair into sequential lessons. Each lesson zooms in on a specific moment within that bigger theme — a particular type of conversation, challenge, or task a {role} in the {industry} industry might face on the job. Lessons break the course down into realistic, manageable practice moments, so you can build your skills one situation at a time.
 
-Topic: {topic_pair['topic']}
-Description: {topic_pair['description']}
+        Topic-description pair:
+        Topic: {topic_pair['topic']}
+        Description: {topic_pair['description']}
 
-Your task is to create a course that breaks down this speaking scenario into sequential lessons. Each lesson should represent a different part of the conversation, starting from the beginning and progressing to the end.
+        Requirements:
+        1. Analayse and leverage the information in the topic-description pair description to create lessons
+        2. Ensure all lessons must be speaking/verbal communication focused
+        3. Make the course name the topic of the topic-description pair.
+        4. Make the course description the description of the topic-description pair.
+        5. Make the lesson names concise and to the point.
 
-Requirements:
-1. Create lessons that follow the natural flow of the conversation
-2. Each lesson should focus on a specific part of the speaking interaction
-3. Add 1-2 bonus lessons for important skills that don't fit the sequential flow
-4. All lessons must be speaking/verbal communication focused
-5. Generate an appropriate course name
+        Analogy example (for understanding purposes ONLY):
+        Imagine a course as a training program on "confident client communication." Each lesson is like attending a different training session within that program — one might focus on asking questions, another on explaining technical terms, another on handling misunderstandings. All are connected, but each teaches a different skill you need to succeed in that bigger goal.
 
-The lessons should help the learner navigate through the entire conversation step by step."""
+
+        """
 
         structured_llm = self.worker1_llm.with_structured_output(CourseWithLessons)
         result = structured_llm.invoke([
-            SystemMessage(content=f"You are an expert in professional communication training for {industry}."),
+            SystemMessage(content=f"You are a subject matter expert for building Business English speaking curriculums for {role} professionals in the {industry} industry."),
             HumanMessage(content=prompt)
         ])
         
@@ -308,6 +316,7 @@ The lessons should help the learner navigate through the entire conversation ste
             "index": index,
             "topic_pair": topic_pair,
             "course_name": result.course_name,
+            "course_description": result.course_description,
             "lessons": [lesson.dict() for lesson in result.lessons]
         }
     
@@ -330,19 +339,20 @@ The lessons should help the learner navigate through the entire conversation ste
                 continue
             
             # Evaluate each output
-            eval_prompt = f"""Evaluate this course structure:
+            eval_prompt = f"""
+            Evaluate this course structure:
 
-Course: {output['course_name']}
-Topic: {output['topic_pair']['topic']}
-Lessons: {json.dumps(output['lessons'], indent=2)}
+            Course: {output['course_name']}
+            Topic: {output['topic_pair']['topic']}
+            Lessons: {json.dumps(output['lessons'], indent=2)}
 
-Check if:
-1. Lessons are in sequential order (except bonus lessons)
-2. All lessons are relevant to the topic
-3. All lessons are speaking/verbal communication related
-4. Output is properly structured
-
-Provide feedback if any criteria are not met."""
+            Check if:
+            1. Lessons are in sequential order
+            2. All lessons are relevant to the topic
+            3. All lessons are speaking/verbal communication related
+            4. Output is properly structured
+            5. The course name is the same as the topic of the topic-description pair.
+            """
 
             try:
                 eval_llm = self.evaluator_llm.with_structured_output(EvaluationResult)
@@ -434,6 +444,7 @@ Provide feedback if any criteria are not met."""
                     full_lessons = future.result()
                     final_courses.append({
                         "course_name": output["course_name"],
+                        "course_description": output["course_description"],
                         "topic_pair": output["topic_pair"],
                         "lessons": full_lessons
                     })
@@ -466,23 +477,25 @@ Provide feedback if any criteria are not met."""
         full_lessons = []
         
         for lesson in lessons:
-            prompt = f"""You are creating a complete lesson for {role} professionals in {industry}.
+            prompt = f"""
+            You are creating a complete lesson for {role} professionals in {industry}.
 
-Course: {course_name}
-Lesson {lesson['lesson_number']}: {lesson['lesson_title']}
-Introduction: {lesson['lesson_introduction']}
+            Course: {course_name}
+            Lesson {lesson['lesson_number']}: {lesson['lesson_title']}
+            Introduction: {lesson['lesson_introduction']}
 
-Generate the complete lesson content including:
-1. Skill Aims (4-5 specific communication skills)
-2. Language Learning Aims (3-4 categories with 3 example phrases each)
-3. Lesson Summary (4 key takeaways)
+            Generate the complete lesson content including:
+            1. Skill Aims (4-5 specific communication skills)
+            2. Language Learning Aims (3-4 categories with 3 example phrases each)
+            3. Lesson Summary (4 key takeaways)
 
-Focus on practical verbal communication skills and real phrases professionals would use."""
+            Focus on practical verbal communication skills and real phrases professionals would use.
+            """
 
             try:
                 structured_llm = self.worker2_llm.with_structured_output(FullLesson)
                 full_lesson = structured_llm.invoke([
-                    SystemMessage(content=f"You are an expert communication trainer for {industry} professionals."),
+                    SystemMessage(content=f"You are a subject matter expert for enhancing English speaking lessons for {role} professionals in the {industry} industry."),
                     HumanMessage(content=prompt)
                 ])
                 
