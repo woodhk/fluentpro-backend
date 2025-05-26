@@ -1,5 +1,6 @@
 from celery import shared_task
 from django.utils import timezone
+from django.conf import settings
 from datetime import datetime
 from .models import GoogleDocument, ProcessingStatus
 from .google_service import GoogleDocsService
@@ -228,7 +229,7 @@ def generate_courses_for_document(document_id):
 
 @shared_task
 def generate_courses_for_all_documents():
-    """Generate courses for all documents with structured content"""
+    """Generate courses for all documents with structured content - ONE AT A TIME"""
     docs_with_content = GoogleDocument.objects.filter(
         processing_completed=True,
         structured_content__isnull=False
@@ -236,10 +237,19 @@ def generate_courses_for_all_documents():
         courses__isnull=False  # Exclude docs that already have courses
     )
     
-    for doc in docs_with_content:
-        generate_courses_for_document.delay(doc.id)
+    print(f"Found {docs_with_content.count()} documents to process")
     
-    return f"Started course generation for {docs_with_content.count()} documents"
+    # Process documents ONE AT A TIME
+    for i, doc in enumerate(docs_with_content):
+        print(f"\nProcessing document {i+1}/{docs_with_content.count()}: {doc.title}")
+        try:
+            # Call the task synchronously (without .delay()) to process one at a time
+            generate_courses_for_document(doc.id)
+        except Exception as e:
+            print(f"Error processing document {doc.id}: {str(e)}")
+            continue
+    
+    return f"Completed processing {docs_with_content.count()} documents"
 
 @shared_task
 def export_courses_to_json(document_id=None):

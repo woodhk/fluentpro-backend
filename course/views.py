@@ -127,7 +127,7 @@ def courses_list(request):
         'courses': page_obj,
         'status': status,
     }
-    return render(request, 'course/courses_list.html', context)
+    return render(request, 'course/course_list.html', context)
 
 def course_detail(request, course_id):
     """View to show course details with all lessons"""

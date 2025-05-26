@@ -160,3 +160,8 @@ CELERY_BEAT_SCHEDULE = {
 OPENAI_API_KEY = config('OPENAI_API_KEY', default='')
 ANTHROPIC_API_KEY = config('ANTHROPIC_API_KEY', default='')
 GOOGLE_GEMINI_API_KEY = config('GOOGLE_GEMINI_API_KEY', default='')
+
+# API Rate Limiting Configuration
+API_RATE_LIMIT_DELAY = 1  # Seconds between API calls
+MAX_CONCURRENT_WORKERS = 5  # Maximum parallel workers
+MAX_RETRIES = 3  # Maximum retries for failed API calls
