@@ -19,3 +19,7 @@ numpy
 tiktoken
 python-dotenv
 eventlet>=0.33.0
+supabase==2.4.0
+postgrest==0.13.0
+httpx>=0.24.0
+tenacity==8.2.3

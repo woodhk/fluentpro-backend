@@ -1,0 +1,243 @@
+{% extends 'course/base.html' %}
+
+{% block title %}Supabase Courses - FluentPro{% endblock %}
+
+{% block extra_css %}
+<style>
+    .supabase-header {
+        background: linear-gradient(135deg, #3ECF8E 0%, #1E8B5C 100%);
+        color: white;
+        padding: 30px;
+        border-radius: 12px;
+        margin-bottom: 30px;
+        box-shadow: 0 4px 12px rgba(62, 207, 142, 0.3);
+    }
+    
+    .supabase-header h1 {
+        margin: 0 0 10px 0;
+        font-size: 32px;
+    }
+    
+    .supabase-header p {
+        margin: 0;
+        opacity: 0.9;
+    }
+    
+    .sync-status {
+        display: inline-block;
+        background: rgba(255, 255, 255, 0.2);
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 14px;
+        margin-top: 15px;
+    }
+    
+    .courses-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+        gap: 24px;
+        margin-bottom: 40px;
+    }
+    
+    .course-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        padding: 24px;
+        transition: all 0.3s ease;
+        border: 2px solid transparent;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .course-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+        border-color: #3ECF8E;
+    }
+    
+    .course-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #3ECF8E 0%, #1E8B5C 100%);
+    }
+    
+    .course-title {
+        font-size: 20px;
+        color: #1a73e8;
+        margin: 0 0 12px 0;
+        line-height: 1.4;
+        font-weight: 600;
+    }
+    
+    .course-meta {
+        display: grid;
+        gap: 8px;
+        margin-bottom: 16px;
+    }
+    
+    .meta-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 14px;
+        color: #5f6368;
+    }
+    
+    .meta-item strong {
+        color: #3c4043;
+        min-width: 80px;
+    }
+    
+    .lesson-count {
+        background: #e8f0fe;
+        color: #1a73e8;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 14px;
+        font-weight: 500;
+        display: inline-block;
+        margin-bottom: 16px;
+    }
+    
+    .course-actions {
+        display: flex;
+        gap: 12px;
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid #e8eaed;
+    }
+    
+    .btn-edit {
+        background: #3ECF8E;
+        color: white;
+        flex: 1;
+    }
+    
+    .btn-edit:hover {
+        background: #2BA96F;
+    }
+    
+    .btn-view {
+        background: #f8f9fa;
+        color: #5f6368;
+        flex: 1;
+    }
+    
+    .btn-view:hover {
+        background: #e8eaed;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 80px 20px;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    
+    .empty-state h2 {
+        color: #3c4043;
+        margin-bottom: 12px;
+    }
+    
+    .empty-state p {
+        color: #5f6368;
+        margin-bottom: 24px;
+    }
+    
+    .supabase-logo {
+        width: 40px;
+        height: 40px;
+        margin-bottom: 20px;
+        opacity: 0.6;
+    }
+    
+    .navigation-buttons {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 30px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="supabase-header">
+    <h1>📚 Supabase Course Editor</h1>
+    <p>View and edit courses directly in the cloud database</p>
+    <div class="sync-status">
+        ✅ Connected to Supabase
+    </div>
+</div>
+
+<div class="navigation-buttons">
+    <a href="{% url 'home' %}" class="btn">← Back to Documents</a>
+    <a href="{% url 'courses_list' %}" class="btn">View Local Courses</a>
+</div>
+
+{% if courses %}
+    <h2 style="margin-bottom: 24px;">Courses in Supabase ({{ courses|length }})</h2>
+    
+    <div class="courses-container">
+        {% for course in courses %}
+        <div class="course-card">
+            <h3 class="course-title">{{ course.course_name }}</h3>
+            
+            <div class="lesson-count">
+                {{ course.lessons|default:"0" }} Lessons
+            </div>
+            
+            <div class="course-meta">
+                <div class="meta-item">
+                    <strong>Role:</strong>
+                    <span>{{ course.role }}</span>
+                </div>
+                <div class="meta-item">
+                    <strong>Industry:</strong>
+                    <span>{{ course.industry }}</span>
+                </div>
+                <div class="meta-item">
+                    <strong>Document:</strong>
+                    <span title="{{ course.document_title }}">{{ course.document_title|truncatewords:6 }}</span>
+                </div>
+                {% if course.updated_at %}
+                <div class="meta-item">
+                    <strong>Updated:</strong>
+                    <span>{{ course.updated_at|date:"Y-m-d H:i" }}</span>
+                </div>
+                {% endif %}
+            </div>
+            
+            <div class="course-actions">
+                <a href="{% url 'supabase_course_edit' course.id %}" class="btn btn-edit">
+                    ✏️ Edit Course
+                </a>
+                <button class="btn btn-view" onclick="viewCourse({{ course.id }})">
+                    👁️ Preview
+                </button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="empty-state">
+        <svg class="supabase-logo" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M21.362 9.795c0-2.184-1.776-3.96-3.96-3.96H6.598c-2.184 0-3.96 1.776-3.96 3.96v4.41c0 2.184 1.776 3.96 3.96 3.96h10.804c2.184 0 3.96-1.776 3.96-3.96v-4.41z" fill="#3ECF8E"/>
+        </svg>
+        <h2>No Courses in Supabase Yet</h2>
+        <p>Process documents and they will automatically appear here after generation.</p>
+        <a href="{% url 'home' %}" class="btn btn-primary">Go to Documents</a>
+    </div>
+{% endif %}
+
+<script>
+function viewCourse(courseId) {
+    // Open preview in new tab (you can implement a preview modal instead)
+    window.open(`/supabase/edit/${courseId}/`, '_blank');
+}
+</script>
+{% endblock %}
