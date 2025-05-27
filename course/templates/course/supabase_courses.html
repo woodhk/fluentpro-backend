@@ -41,37 +41,48 @@
                 </div>
             </div>
             
-            <div class="courses-grid hidden" id="courses-{{ industry_group.grouper|slugify }}">
-                {% for course in industry_group.list %}
-                <div class="course-card">
-                    <h4 class="text-primary mb-2">{{ course.course_name }}</h4>
-                    
-                    <div class="badge badge-info mb-3">
-                        📚 {{ course.lessons|default:"0" }} Lessons
-                    </div>
-                    
-                    <div class="mb-3">
-                        <div class="mb-1">
-                            <strong>👔 Role:</strong> {{ course.role }}
+            <div class="hidden" id="courses-{{ industry_group.grouper|slugify }}">
+                <!-- Group by role within industry -->
+                {% regroup industry_group.list by role as roles_list %}
+                {% for role_group in roles_list %}
+                <div class="p-3">
+                    <h4 class="mb-3 text-primary">👔 {{ role_group.grouper }}</h4>
+                    <div class="courses-grid">
+                        {% for course in role_group.list %}
+                        <div class="course-card">
+                            <h5 class="text-primary mb-2">{{ course.course_name }}</h5>
+                            
+                            <div class="badge badge-info mb-3">
+                                📚 {{ course.lessons|default:"0" }} Lessons
+                            </div>
+                            
+                            <div class="mb-3">
+                                <div class="mb-1">
+                                    <strong>📄 Document:</strong> 
+                                    <span title="{{ course.document_title }}">{{ course.document_title|truncatewords:6 }}</span>
+                                </div>
+                                {% if course.updated_at %}
+                                <div class="mb-1">
+                                    <strong>⏰ Updated:</strong> {{ course.updated_at|date:"Y-m-d H:i" }}
+                                </div>
+                                {% endif %}
+                                {% if course.original_industry and course.original_industry != course.industry %}
+                                <div class="mb-1">
+                                    <small class="text-muted">Original: {{ course.original_industry }}</small>
+                                </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="button-group">
+                                <a href="{% url 'supabase_course_edit' course.id %}" class="btn btn-primary">
+                                    ✏️ Edit Course
+                                </a>
+                                <button class="btn btn-secondary" data-course-id="{{ course.id }}" onclick="viewCourse(this.dataset.courseId)">
+                                    👁️ Preview
+                                </button>
+                            </div>
                         </div>
-                        <div class="mb-1">
-                            <strong>📄 Document:</strong> 
-                            <span title="{{ course.document_title }}">{{ course.document_title|truncatewords:6 }}</span>
-                        </div>
-                        {% if course.updated_at %}
-                        <div class="mb-1">
-                            <strong>⏰ Updated:</strong> {{ course.updated_at|date:"Y-m-d H:i" }}
-                        </div>
-                        {% endif %}
-                    </div>
-                    
-                    <div class="button-group">
-                        <a href="{% url 'supabase_course_edit' course.id %}" class="btn btn-primary">
-                            ✏️ Edit Course
-                        </a>
-                        <button class="btn btn-secondary" data-course-id="{{ course.id }}" onclick="viewCourse(this.dataset.courseId)">
-                            👁️ Preview
-                        </button>
+                        {% endfor %}
                     </div>
                 </div>
                 {% endfor %}
@@ -94,6 +105,20 @@
     {% endif %}
 </div>
 
+<style>
+.courses-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+}
+
+.course-card h5 {
+    font-size: 1.1rem;
+    margin-bottom: 0.5rem;
+}
+</style>
+
 <script>
 function viewCourse(courseId) {
     // Open preview in new tab (you can implement a preview modal instead)
@@ -105,32 +130,25 @@ function toggleIndustry(industry) {
     const toggleIcon = document.getElementById(`toggle-${industry}`);
     
     if (coursesContainer && toggleIcon) {
-        const isExpanded = coursesContainer.classList.contains('expanded');
+        const isExpanded = !coursesContainer.classList.contains('hidden');
         
         if (isExpanded) {
             // Collapse
-            coursesContainer.classList.remove('expanded');
             coursesContainer.classList.add('hidden');
             toggleIcon.style.transform = 'rotate(0deg)';
         } else {
             // Expand
-            coursesContainer.classList.add('expanded');
             coursesContainer.classList.remove('hidden');
             toggleIcon.style.transform = 'rotate(180deg)';
         }
     }
 }
 
-// Initialize all industries as collapsed on page load
+// Initialize first industry as expanded on page load
 document.addEventListener('DOMContentLoaded', function() {
-    // Keep first industry expanded by default
-    const firstIndustryContainer = document.querySelector('.courses-grid');
-    const firstToggleIcon = document.querySelector('[id^="toggle-"]');
-    
-    if (firstIndustryContainer && firstToggleIcon) {
-        firstIndustryContainer.classList.add('expanded');
-        firstIndustryContainer.classList.remove('hidden');
-        firstToggleIcon.style.transform = 'rotate(180deg)';
+    const firstIndustrySlug = document.querySelector('[id^="courses-"]')?.id?.replace('courses-', '');
+    if (firstIndustrySlug) {
+        toggleIndustry(firstIndustrySlug);
     }
 });
 </script>

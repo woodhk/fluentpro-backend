@@ -270,6 +270,8 @@ def process_document_with_rag_safe(self, document_id):
         logger.error(f"Error in RAG processing: {str(e)}")
         raise
 
+# In generate_courses_for_document_safe function, add status callback:
+
 @shared_task(bind=True, max_retries=3)
 def generate_courses_for_document_safe(self, document_id):
     """Generate courses with rate limit handling"""
@@ -300,13 +302,28 @@ def generate_courses_for_document_safe(self, document_id):
         status.current_stage = 'Course Generation Workflow'
         status.save()
         
+        # Define status callback to update ProcessingStatus
+        def workflow_status_callback(step, message):
+            """Update the main processing status from workflow"""
+            status, _ = ProcessingStatus.objects.get_or_create(pk=1)
+            status.current_stage = step
+            status.message = f"Document '{doc.title}': {message}"
+            status.save()
+            
+            # Also update generation status
+            gen_status.current_step = step
+            gen_status.save()
+            
+            logger.info(f"[Workflow Status] {step}: {message}")
+        
         # Initialize and run workflow with rate limit handling
         max_retry_attempts = 3
         retry_count = 0
         
         while retry_count < max_retry_attempts:
             try:
-                workflow = CourseGenerationWorkflow()
+                # Pass the status callback to the workflow
+                workflow = CourseGenerationWorkflow(status_callback=workflow_status_callback)
                 result = workflow.process_document(document_id, structured_content)
                 
                 if result['error']:
@@ -325,6 +342,7 @@ def generate_courses_for_document_safe(self, document_id):
                     course = GeneratedCourse.objects.create(
                         document=doc,
                         course_name=course_data['course_name'],
+                        course_description=course_data.get('course_description', ''),  # Add this field
                         role=result['role'],
                         industry=result['industry']
                     )
@@ -400,13 +418,14 @@ def export_and_upload_to_supabase(document_id):
         courses_data = []
         
         for course in courses:
-            # Check if already uploaded
+          
             if supabase_service.check_duplicate_course(course.id):
                 logger.info(f"Course {course.id} already in Supabase")
                 continue
             
             course_data = {
                 'course_name': course.course_name,
+                'course_description': course.course_description,  # Add this
                 'role': course.role,
                 'industry': course.industry,
                 'document_title': doc.title,

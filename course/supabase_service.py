@@ -26,6 +26,7 @@ class SupabaseService:
             # Prepare course data
             course_record = {
                 'course_name': course_data['course_name'],
+                'course_description': course_data.get('course_description', ''),  # Add this
                 'role': course_data['role'],
                 'industry': course_data['industry'],
                 'document_title': course_data.get('document_title', ''),

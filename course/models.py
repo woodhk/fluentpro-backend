@@ -57,10 +57,13 @@ class ProcessingStatus(models.Model):
     class Meta:
         verbose_name_plural = "Processing Status"
 
+# In the GeneratedCourse model, add the course_description field:
+
 class GeneratedCourse(models.Model):
     """Model for storing generated courses"""
     document = models.ForeignKey(GoogleDocument, on_delete=models.CASCADE, related_name='courses')
     course_name = models.CharField(max_length=500)
+    course_description = models.TextField(default='')  # Add this field
     role = models.CharField(max_length=200)
     industry = models.CharField(max_length=200)
     topic_description_pair = models.TextField()  # Store as JSON

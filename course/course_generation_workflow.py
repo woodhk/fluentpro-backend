@@ -393,69 +393,91 @@ class CourseGenerationWorkflow:
             "course_description": result.course_description,
             "lessons": [lesson.dict() for lesson in result.lessons]
         }
-    
+
     def evaluator_node(self, state: WorkflowState) -> WorkflowState:
         """Evaluate worker outputs"""
         state["current_step"] = "Evaluating worker outputs"
-        print(f"[Evaluator] Evaluating {len(state['worker_outputs'])} course outputs")
-        self.update_status("evaluating_outline", "Evaluating lesson outlines")
         
-        evaluation_results = []
+        # Determine which outputs to evaluate
+        if state.get("retry_count", 0) > 0 and state.get("failed_indices"):
+            # On retry, only evaluate previously failed courses
+            outputs_to_evaluate = [
+                output for output in state["worker_outputs"] 
+                if output["index"] in state["failed_indices"]
+            ]
+            print(f"[Evaluator] Re-evaluating {len(outputs_to_evaluate)} previously failed courses")
+        else:
+            # First run - evaluate all
+            outputs_to_evaluate = state["worker_outputs"]
+            print(f"[Evaluator] Evaluating {len(outputs_to_evaluate)} course outputs")
+        
+        self.update_status("evaluating_outline", f"Evaluating {len(outputs_to_evaluate)} lesson outlines")
+        
+        # Keep track of all evaluation results
+        evaluation_results = state.get("evaluation_results", []) if state.get("retry_count", 0) > 0 else []
         failed_indices = []
         
-        for output in state["worker_outputs"]:
+        # Create a map of existing evaluations
+        existing_evaluations = {eval_result["index"]: eval_result for eval_result in evaluation_results}
+        
+        for output in outputs_to_evaluate:
             if "error" in output:
-                evaluation_results.append({
+                eval_result = {
                     "index": output.get("index", -1),
                     "passed": False,
                     "feedback": output["error"]
-                })
+                }
                 failed_indices.append(output.get("index", -1))
-                continue
-            
-            # Evaluate each output
-            eval_prompt = f"""
-            Evaluate this course structure:
+            else:
+                # Evaluate each output
+                eval_prompt = f"""
+                Evaluate this course structure:
 
-            Course: {output['course_name']}
-            Course Description: {output['course_description']}
-            Topic: {output['topic_pair']['topic']}
-            Topic Description: {output['topic_pair']['description']}
-            Lessons: {json.dumps(output['lessons'], indent=2)}
+                Course: {output['course_name']}
+                Course Description: {output['course_description']}
+                Topic: {output['topic_pair']['topic']}
+                Topic Description: {output['topic_pair']['description']}
+                Lessons: {json.dumps(output['lessons'], indent=2)}
 
-            Check if:
-            1. All lessons are speaking/verbal communication related
-            2. Output is properly structured
-            3. The course name is the same as the topic of the topic-description pair.
-            4. The course description is the same as the description of the topic-description pair.
-            """
-
-            try:
-                eval_llm = self.evaluator_llm.with_structured_output(EvaluationResult)
-                eval_result = eval_llm.invoke([
-                    SystemMessage(content="You are a quality assurance expert for educational content."),
-                    HumanMessage(content=eval_prompt)
-                ])
+                Check if:
+                1. All lessons are speaking/verbal communication related
+                2. Output is properly structured
+                3. The course name EXACTLY matches the topic (character by character)
+                4. The course description EXACTLY matches the topic description (character by character)
                 
-                evaluation_results.append({
-                    "index": output["index"],
-                    "passed": eval_result.passed,
-                    "feedback": eval_result.feedback
-                })
-                
-                if not eval_result.passed:
-                    failed_indices.append(output["index"])
-                    print(f"[Evaluator] Course '{output['course_name']}' failed: {eval_result.feedback}")
+                However, for requirements 3 and 4, if there are small typos or differences, they are okay.
+                """
+
+                try:
+                    eval_llm = self.evaluator_llm.with_structured_output(EvaluationResult)
+                    eval_result = eval_llm.invoke([
+                        SystemMessage(content="You are a quality assurance expert for educational content. Be very strict about exact text matching."),
+                        HumanMessage(content=eval_prompt)
+                    ])
                     
-            except Exception as e:
-                evaluation_results.append({
-                    "index": output["index"],
-                    "passed": False,
-                    "feedback": f"Evaluation error: {str(e)}"
-                })
-                failed_indices.append(output["index"])
+                    eval_dict = {
+                        "index": output["index"],
+                        "passed": eval_result.passed,
+                        "feedback": eval_result.feedback
+                    }
+                    
+                    if not eval_result.passed:
+                        failed_indices.append(output["index"])
+                        print(f"[Evaluator] Course '{output['course_name']}' failed: {eval_result.feedback}")
+                        
+                except Exception as e:
+                    eval_dict = {
+                        "index": output["index"],
+                        "passed": False,
+                        "feedback": f"Evaluation error: {str(e)}"
+                    }
+                    failed_indices.append(output["index"])
+            
+            # Update the evaluation result
+            existing_evaluations[output["index"]] = eval_dict
         
-        state["evaluation_results"] = evaluation_results
+        # Convert back to list
+        state["evaluation_results"] = list(existing_evaluations.values())
         state["failed_indices"] = failed_indices
         
         # Increment retry count if there are failures
@@ -465,10 +487,11 @@ class CourseGenerationWorkflow:
         else:
             self.update_status("outline_accepted", "All lesson outlines accepted")
         
-        print(f"[Evaluator] {len(evaluation_results) - len(failed_indices)} passed, {len(failed_indices)} failed")
+        passed_count = len([e for e in state["evaluation_results"] if e["passed"]])
+        print(f"[Evaluator] Total: {passed_count} passed, {len(failed_indices)} failed")
         
         return state
-    
+        
     def should_retry(self, state: WorkflowState) -> Literal["retry", "continue"]:
         """Decide whether to retry or continue"""
         # Check if there are failed courses

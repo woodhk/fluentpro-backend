@@ -262,14 +262,49 @@ def supabase_courses_list(request):
         supabase = SupabaseService()
         courses = supabase.get_all_courses()
         
-        # Add lesson count for each course
+        # Normalize industries to prevent duplicates
+        industry_mapping = {}
+        normalized_courses = []
+        
         for course in courses:
-            # Get lessons count (you might need to adjust based on your schema)
+            # Get lessons count
             lessons_response = supabase.client.table('lessons').select('id').eq('course_id', course['id']).execute()
             course['lessons'] = len(lessons_response.data) if lessons_response.data else 0
+            
+            # Normalize industry name
+            raw_industry = course.get('industry', 'Uncategorized')
+            
+            # Clean and normalize the industry name
+            normalized_industry = raw_industry.strip().title()
+            
+            # Handle common variations
+            industry_variations = {
+                'Banking & Finance': ['Banking And Finance', 'Banking and Finance', 'Banking Finance', 'Finance & Banking', 'Finance And Banking'],
+                'Healthcare': ['Health Care', 'Health-Care', 'Medical', 'Healthcare Industry'],
+                'Technology': ['Tech', 'IT', 'Information Technology', 'Software'],
+                'Education': ['Educational', 'Academic', 'Teaching'],
+                'Manufacturing': ['Industrial', 'Production'],
+                'Retail': ['Retail Industry', 'Retail Sector'],
+                'Shipping & Logistics': ['Shipping & Logistics Industry', 'Shipping & Logistics Sector', 'Shipping', 'Logistics', 'Shipping and Logistics', 'Shipping Logistics', 'Logistics & Shipping', 'Logistics & Shipping Industry', 'Logistics & Shipping Sector'],
+                'Hospitality': ['Hotels', 'Tourism', 'Hotel Industry'],
+            }
+            
+            # Check if this industry matches any known variations
+            for standard_name, variations in industry_variations.items():
+                if normalized_industry in variations or normalized_industry == standard_name:
+                    normalized_industry = standard_name
+                    break
+            
+            # Update course with normalized industry
+            course['industry'] = normalized_industry
+            course['original_industry'] = raw_industry  # Keep original for reference
+            normalized_courses.append(course)
+        
+        # Sort courses by industry first, then by role within each industry
+        normalized_courses.sort(key=lambda x: (x['industry'], x.get('role', '')))
         
         context = {
-            'courses': courses
+            'courses': normalized_courses
         }
         return render(request, 'course/supabase_courses.html', context)
     except Exception as e:
