@@ -39,23 +39,9 @@
                 <p id="progressText" class="progress-text">Initializing...</p>
             </div>
             
-            <div class="stage-list">
-                <div class="stage-item" id="stage-check">
-                    <span class="stage-icon">○</span>
-                    <span>Check for new documents</span>
-                </div>
-                <div class="stage-item" id="stage-rag">
-                    <span class="stage-icon">○</span>
-                    <span>Process with RAG</span>
-                </div>
-                <div class="stage-item" id="stage-generate">
-                    <span class="stage-icon">○</span>
-                    <span>Generate courses</span>
-                </div>
-                <div class="stage-item" id="stage-upload">
-                    <span class="stage-icon">○</span>
-                    <span>Upload to database</span>
-                </div>
+            <!-- Detailed Workflow Steps -->
+            <div class="workflow-steps" id="workflowSteps">
+                <!-- Steps will be dynamically added here -->
             </div>
         </div>
         
@@ -130,330 +116,101 @@
     </div>
 </div>
 
-<style>
-    .automation-container {
-        max-width: 800px;
-        margin: 0 auto;
-        padding: 20px;
-    }
-    
-    h1 {
-        text-align: center;
-        color: #333;
-        margin-bottom: 30px;
-    }
-    
-    .automation-card {
-        background: white;
-        border-radius: 8px;
-        padding: 30px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        margin-bottom: 30px;
-    }
-    
-    .automation-card h2 {
-        margin-top: 0;
-        color: #333;
-    }
-    
-    .automation-card p {
-        color: #666;
-        margin-bottom: 20px;
-    }
-    
-    .btn-large {
-        padding: 15px 40px;
-        font-size: 18px;
-    }
-    
-    .progress-container {
-        margin: 20px 0;
-    }
-    
-    .progress-bar {
-        width: 100%;
-        height: 20px;
-        background: #f0f0f0;
-        border-radius: 10px;
-        overflow: hidden;
-    }
-    
-    .progress-fill {
-        height: 100%;
-        background: #4285f4;
-        width: 0%;
-        transition: width 0.5s ease;
-    }
-    
-    .progress-text {
-        text-align: center;
-        margin-top: 10px;
-        color: #666;
-    }
-    
-    .stage-list {
-        margin-top: 20px;
-    }
-    
-    .stage-item {
-        padding: 10px;
-        margin: 5px 0;
-        background: #f8f9fa;
-        border-radius: 6px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-    
-    .stage-item.active {
-        background: #e8f0fe;
-        color: #1a73e8;
-    }
-    
-    .stage-item.complete {
-        background: #e6f4ea;
-        color: #188038;
-    }
-    
-    .stage-item.error {
-        background: #fce8e6;
-        color: #d33b2c;
-    }
-    
-    .stage-icon {
-        font-size: 20px;
-    }
-    
-    .stage-item.active .stage-icon::after {
-        content: '◉';
-    }
-    
-    .stage-item.complete .stage-icon::after {
-        content: '✓';
-    }
-    
-    .stage-item.error .stage-icon::after {
-        content: '✗';
-    }
-    
-    .error-section {
-        background: #fce8e6;
-        border: 1px solid #d33b2c;
-        border-radius: 6px;
-        padding: 20px;
-        margin-top: 20px;
-    }
-    
-    .error-section h3 {
-        color: #d33b2c;
-        margin-top: 0;
-    }
-    
-    .success-section {
-        background: #e6f4ea;
-        border: 1px solid #34a853;
-        border-radius: 6px;
-        padding: 20px;
-        margin-top: 20px;
-    }
-    
-    .success-section h3 {
-        color: #188038;
-        margin-top: 0;
-    }
-    
-    .button-group {
-        display: flex;
-        gap: 10px;
-        margin-top: 15px;
-        flex-wrap: wrap;
-    }
-    
-    .manual-controls {
-        margin-top: 20px;
-        padding: 15px;
-        background: #f8f9fa;
-        border-radius: 6px;
-    }
-    
-    .manual-controls summary {
-        cursor: pointer;
-        font-weight: 500;
-        color: #666;
-    }
-    
-    .manual-buttons {
-        margin-top: 15px;
-        display: flex;
-        gap: 10px;
-        flex-wrap: wrap;
-    }
-    
-    .btn-small {
-        padding: 8px 16px;
-        font-size: 14px;
-    }
-    
-    .documents-section {
-        margin-top: 40px;
-    }
-    
-    .documents-section h2 {
-        color: #333;
-        margin-bottom: 20px;
-    }
-    
-    .documents-list {
-        display: flex;
-        flex-direction: column;
-        gap: 15px;
-    }
-    
-    .document-item {
-        background: white;
-        border: 1px solid #e0e0e0;
-        border-radius: 6px;
-        padding: 20px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-    
-    .document-info h3 {
-        margin: 0 0 10px 0;
-        color: #333;
-        font-size: 18px;
-    }
-    
-    .document-info p {
-        margin: 0 0 5px 0;
-        color: #666;
-    }
-    
-    .document-info small {
-        color: #999;
-    }
-    
-    .status-badge {
-        padding: 5px 12px;
-        border-radius: 16px;
-        font-size: 14px;
-        font-weight: 500;
-    }
-    
-    .status-complete {
-        background: #e6f4ea;
-        color: #188038;
-    }
-    
-    .status-pending {
-        background: #fef7e0;
-        color: #ea8600;
-    }
-    
-    .empty-message {
-        text-align: center;
-        color: #666;
-        padding: 40px;
-        background: #f8f9fa;
-        border-radius: 6px;
-    }
-    
-    .pagination {
-        text-align: center;
-        margin-top: 20px;
-        color: #666;
-    }
-    
-    .pagination a {
-        color: #4285f4;
-        text-decoration: none;
-        padding: 5px 10px;
-    }
-    
-    .pagination a:hover {
-        text-decoration: underline;
-    }
-    
-    .btn-danger {
-        background: #dc3545;
-        color: white;
-    }
-    
-    .btn-danger:hover {
-        background: #c82333;
-    }
-    
-    .course-management-section {
-        margin: 30px 0;
-        text-align: center;
-    }
-    
-    .divider {
-        position: relative;
-        margin: 20px 0;
-        text-align: center;
-    }
-    
-    .divider::before {
-        content: '';
-        position: absolute;
-        top: 50%;
-        left: 0;
-        right: 0;
-        height: 1px;
-        background: #e0e0e0;
-        z-index: 1;
-    }
-    
-    .divider span {
-        background: white;
-        padding: 0 15px;
-        color: #666;
-        font-size: 14px;
-        position: relative;
-        z-index: 2;
-    }
-    
-    .btn-secondary {
-        background: #6c757d;
-        color: white;
-        border: none;
-    }
-    
-    .btn-secondary:hover {
-        background: #5a6268;
-        transform: translateY(-1px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-    }
-    
-    .course-btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 10px;
-        text-decoration: none;
-        transition: all 0.3s ease;
-        border-radius: 8px;
-    }
-    
-    .btn-icon {
-        font-size: 20px;
-    }
-    
-    .course-btn-description {
-        margin-top: 8px;
-        color: #666;
-        font-size: 14px;
-        margin-bottom: 0;
-    }
-</style>
-
 <script>
     let automationInProgress = false;
     let statusCheckInterval;
+    let workflowSteps = [];
+    let currentDocumentName = '';
+    let documentCount = 0;
+    
+    // Define all possible workflow steps
+    const workflowStepTemplates = [
+        { id: 'check-docs', text: 'Checking for new documents', icon: '🔍' },
+        { id: 'found-docs', text: 'Found {x} documents', icon: '📄' },
+        { id: 'embedding', text: 'Embedding {document}', icon: '🔗' },
+        { id: 'embedded', text: 'Successfully embedded {document}', icon: '✅' },
+        { id: 'organizing', text: 'Organizing {document}', icon: '📋' },
+        { id: 'organized', text: 'Successfully organized {document}', icon: '✅' },
+        { id: 'generating-courses', text: 'Generating courses', icon: '🎓' },
+        { id: 'generating-outline', text: 'Generating lesson outline', icon: '📝' },
+        { id: 'evaluating-outline', text: 'Evaluating lesson outline', icon: '🔍' },
+        { id: 'improving-outline', text: 'Improving lesson outline', icon: '🔄' },
+        { id: 'outline-accepted', text: 'Lesson outline accepted', icon: '✅' },
+        { id: 'creating-lessons', text: 'Creating full lessons', icon: '📚' },
+        { id: 'lessons-created', text: 'Successfully created lessons', icon: '✅' },
+        { id: 'aggregating', text: 'Aggregating courses and lessons', icon: '🔀' },
+        { id: 'aggregated', text: 'Successfully aggregated courses and lessons', icon: '✅' },
+        { id: 'uploading', text: 'Uploading to database', icon: '☁️' },
+        { id: 'uploaded', text: 'Successfully uploaded to database', icon: '✅' },
+        { id: 'completed', text: 'Workflow completed', icon: '🎉' }
+    ];
     
     function getCSRFToken() {
         return document.querySelector('[name=csrfmiddlewaretoken]').value;
+    }
+    
+    function createWorkflowStep(template, status = 'pending') {
+        const step = document.createElement('div');
+        step.className = `workflow-step ${status}`;
+        step.id = `step-${template.id}`;
+        
+        const icon = document.createElement('div');
+        icon.className = 'step-icon';
+        icon.textContent = template.icon;
+        
+        const content = document.createElement('div');
+        content.className = 'step-content';
+        
+        const title = document.createElement('div');
+        title.className = 'step-title';
+        title.textContent = template.text;
+        
+        content.appendChild(title);
+        step.appendChild(icon);
+        step.appendChild(content);
+        
+        return step;
+    }
+    
+    function updateStepText(stepId, text, subtitle = '') {
+        const step = document.getElementById(`step-${stepId}`);
+        if (step) {
+            const title = step.querySelector('.step-title');
+            if (title) {
+                title.textContent = text;
+            }
+            
+            // Add or update subtitle
+            let subtitleEl = step.querySelector('.step-subtitle');
+            if (subtitle) {
+                if (!subtitleEl) {
+                    subtitleEl = document.createElement('div');
+                    subtitleEl.className = 'step-subtitle';
+                    step.querySelector('.step-content').appendChild(subtitleEl);
+                }
+                subtitleEl.textContent = subtitle;
+            } else if (subtitleEl) {
+                subtitleEl.remove();
+            }
+        }
+    }
+    
+    function updateStepStatus(stepId, status) {
+        const step = document.getElementById(`step-${stepId}`);
+        if (step) {
+            step.className = `workflow-step ${status}`;
+        }
+    }
+    
+    function addWorkflowStep(template, status = 'pending') {
+        const container = document.getElementById('workflowSteps');
+        const step = createWorkflowStep(template, status);
+        container.appendChild(step);
+        
+        // Auto-scroll to show latest step
+        container.scrollTop = container.scrollHeight;
+        
+        return step;
     }
     
     async function startAutomation() {
@@ -465,10 +222,12 @@
         document.getElementById('errorSection').style.display = 'none';
         document.getElementById('successSection').style.display = 'none';
         
-        // Reset all stages
-        document.querySelectorAll('.stage-item').forEach(item => {
-            item.classList.remove('active', 'complete', 'error');
-        });
+        // Clear previous workflow steps
+        document.getElementById('workflowSteps').innerHTML = '';
+        workflowSteps = [];
+        
+        // Add initial step
+        addWorkflowStep(workflowStepTemplates[0], 'active');
         
         updateProgress(0, 'Starting automation...');
         
@@ -518,32 +277,146 @@
     }
     
     function updateAutomationDisplay(data) {
-        const stages = {
-            'Fetching documents': { id: 'stage-check', progress: 25 },
-            'Generating embeddings': { id: 'stage-rag', progress: 50 },
-            'Extracting structured content': { id: 'stage-rag', progress: 50 },
-            'Course Generation Workflow': { id: 'stage-generate', progress: 75 },
-            'Document Pipeline': { id: 'stage-upload', progress: 90 }
+        // Map backend stages to workflow steps
+        const stageMapping = {
+            'Fetching documents': { stepId: 'check-docs', progress: 5 },
+            'Generating embeddings': { stepId: 'embedding', progress: 15 },
+            'Extracting structured content': { stepId: 'embedding', progress: 20 },
+            'organizing': { stepId: 'organizing', progress: 30 },
+            'organized': { stepId: 'organized', progress: 35 },
+            'generating_outline': { stepId: 'generating-outline', progress: 45 },
+            'evaluating_outline': { stepId: 'evaluating-outline', progress: 55 },
+            'improving_outline': { stepId: 'improving-outline', progress: 60 },
+            'outline_rejected': { stepId: 'improving-outline', progress: 60 },
+            'outline_accepted': { stepId: 'outline-accepted', progress: 65 },
+            'creating_lessons': { stepId: 'creating-lessons', progress: 75 },
+            'lessons_created': { stepId: 'lessons-created', progress: 80 },
+            'aggregating': { stepId: 'aggregating', progress: 85 },
+            'aggregated': { stepId: 'aggregated', progress: 90 },
+            'Document Pipeline': { stepId: 'uploading', progress: 95 },
+            'Course Generation Workflow': { stepId: 'generating-courses', progress: 40 }
         };
         
-        // Update progress based on current stage
-        const stageInfo = stages[data.current_stage];
-        if (stageInfo) {
-            updateProgress(stageInfo.progress, data.message || data.current_stage);
-            
-            // Update stage indicators
-            Object.keys(stages).forEach(stage => {
-                const stageEl = document.getElementById(stages[stage].id);
-                if (stageEl) {
-                    if (stages[stage].progress < stageInfo.progress) {
-                        stageEl.classList.add('complete');
-                        stageEl.classList.remove('active');
-                    } else if (stages[stage].progress === stageInfo.progress) {
-                        stageEl.classList.add('active');
-                        stageEl.classList.remove('complete');
-                    }
+        // Extract information from the message
+        const message = data.message || '';
+        const stage = data.current_stage || '';
+        
+        // Update document information
+        if (message.includes('Found') && message.includes('documents')) {
+            const match = message.match(/Found (\d+) documents?/);
+            if (match) {
+                documentCount = parseInt(match[1]);
+                if (!document.getElementById('step-found-docs')) {
+                    updateStepStatus('check-docs', 'complete');
+                    addWorkflowStep({
+                        ...workflowStepTemplates[1],
+                        text: `Found ${documentCount} document${documentCount !== 1 ? 's' : ''}`
+                    }, 'complete');
                 }
-            });
+            }
+        }
+        
+        // Extract document name
+        if (message.includes('document')) {
+            const docMatch = message.match(/document[:\s]+([^.]+)/i);
+            if (docMatch) {
+                currentDocumentName = docMatch[1].trim();
+            }
+        }
+        
+        // Handle specific stages
+        if (stage.includes('Generating embeddings') || stage.includes('Extracting structured content')) {
+            if (!document.getElementById('step-embedding')) {
+                addWorkflowStep({
+                    ...workflowStepTemplates[2],
+                    text: `Embedding ${currentDocumentName || 'document'}`
+                }, 'active');
+            }
+            updateProgress(15, message);
+        } else if (stage === 'organizing' || message.includes('Organizing')) {
+            updateStepStatus('embedding', 'complete');
+            if (!document.getElementById('step-embedded')) {
+                addWorkflowStep({
+                    ...workflowStepTemplates[3],
+                    text: `Successfully embedded ${currentDocumentName || 'document'}`
+                }, 'complete');
+            }
+            if (!document.getElementById('step-organizing')) {
+                addWorkflowStep({
+                    ...workflowStepTemplates[4],
+                    text: `Organizing ${currentDocumentName || 'document'}`
+                }, 'active');
+            }
+            updateProgress(30, message);
+        } else if (stage === 'organized' || message.includes('Successfully organized')) {
+            updateStepStatus('organizing', 'complete');
+            if (!document.getElementById('step-organized')) {
+                addWorkflowStep({
+                    ...workflowStepTemplates[5],
+                    text: `Successfully organized ${currentDocumentName || 'document'}`
+                }, 'complete');
+            }
+            updateProgress(35, message);
+        } else if (stage === 'Course Generation Workflow' || stage === 'generating_outline') {
+            if (!document.getElementById('step-generating-courses')) {
+                addWorkflowStep(workflowStepTemplates[6], 'complete');
+            }
+            if (!document.getElementById('step-generating-outline')) {
+                addWorkflowStep(workflowStepTemplates[7], 'active');
+            }
+            updateProgress(45, message);
+        } else if (stage === 'evaluating_outline') {
+            updateStepStatus('generating-outline', 'complete');
+            if (!document.getElementById('step-evaluating-outline')) {
+                addWorkflowStep(workflowStepTemplates[8], 'active');
+            }
+            updateProgress(55, message);
+        } else if (stage === 'improving_outline' || stage === 'outline_rejected') {
+            updateStepStatus('evaluating-outline', 'warning');
+            if (!document.getElementById('step-improving-outline')) {
+                addWorkflowStep(workflowStepTemplates[9], 'active');
+            }
+            updateProgress(60, message);
+        } else if (stage === 'outline_accepted') {
+            updateStepStatus('evaluating-outline', 'complete');
+            updateStepStatus('improving-outline', 'complete');
+            if (!document.getElementById('step-outline-accepted')) {
+                addWorkflowStep(workflowStepTemplates[10], 'complete');
+            }
+            updateProgress(65, message);
+        } else if (stage === 'creating_lessons') {
+            if (!document.getElementById('step-creating-lessons')) {
+                addWorkflowStep(workflowStepTemplates[11], 'active');
+            }
+            updateProgress(75, message);
+        } else if (stage === 'lessons_created') {
+            updateStepStatus('creating-lessons', 'complete');
+            if (!document.getElementById('step-lessons-created')) {
+                addWorkflowStep(workflowStepTemplates[12], 'complete');
+            }
+            updateProgress(80, message);
+        } else if (stage === 'aggregating') {
+            if (!document.getElementById('step-aggregating')) {
+                addWorkflowStep(workflowStepTemplates[13], 'active');
+            }
+            updateProgress(85, message);
+        } else if (stage === 'aggregated') {
+            updateStepStatus('aggregating', 'complete');
+            if (!document.getElementById('step-aggregated')) {
+                addWorkflowStep(workflowStepTemplates[14], 'complete');
+            }
+            updateProgress(90, message);
+        } else if (stage === 'Document Pipeline' || message.includes('Uploading')) {
+            if (!document.getElementById('step-uploading')) {
+                addWorkflowStep(workflowStepTemplates[15], 'active');
+            }
+            updateProgress(95, message);
+        }
+        
+        // Check for general status updates
+        const mappedStage = stageMapping[stage] || stageMapping[data.current_stage];
+        if (mappedStage) {
+            updateProgress(mappedStage.progress, message);
         }
     }
     
@@ -558,19 +431,12 @@
         document.getElementById('errorStage').textContent = stage;
         document.getElementById('errorDetails').textContent = details;
         
-        // Mark the failed stage
-        const stageMap = {
-            'Fetching documents': 'stage-check',
-            'Generating embeddings': 'stage-rag',
-            'Extracting structured content': 'stage-rag',
-            'Course Generation Workflow': 'stage-generate',
-            'Document Pipeline': 'stage-upload'
-        };
-        
-        const stageEl = document.getElementById(stageMap[stage]);
-        if (stageEl) {
-            stageEl.classList.add('error');
-        }
+        // Mark the last active step as error
+        const activeSteps = document.querySelectorAll('.workflow-step.active');
+        activeSteps.forEach(step => {
+            step.classList.remove('active');
+            step.classList.add('error');
+        });
     }
     
     function showSuccess(message) {
@@ -578,11 +444,24 @@
         document.getElementById('successSection').style.display = 'block';
         document.getElementById('successMessage').textContent = message;
         
-        // Mark all stages as complete
-        document.querySelectorAll('.stage-item').forEach(item => {
-            item.classList.add('complete');
-            item.classList.remove('active');
+        // Mark all steps as complete
+        const allSteps = document.querySelectorAll('.workflow-step');
+        allSteps.forEach(step => {
+            if (!step.classList.contains('complete') && !step.classList.contains('error')) {
+                step.classList.remove('active', 'pending');
+                step.classList.add('complete');
+            }
         });
+        
+        // Add final completion step
+        if (!document.getElementById('step-uploaded')) {
+            addWorkflowStep(workflowStepTemplates[16], 'complete');
+        }
+        if (!document.getElementById('step-completed')) {
+            addWorkflowStep(workflowStepTemplates[17], 'complete');
+        }
+        
+        updateProgress(100, 'Completed!');
         
         // Refresh the page after 3 seconds to show new documents
         setTimeout(() => {
@@ -596,6 +475,7 @@
         document.getElementById('progressSection').style.display = 'none';
         document.getElementById('errorSection').style.display = 'none';
         document.getElementById('successSection').style.display = 'none';
+        document.getElementById('workflowSteps').innerHTML = '';
     }
     
     // Manual control functions
@@ -672,3 +552,5 @@
     }
 </script>
 {% endblock %}
+Now let me update the Django settings to properly handle static files:
+Let me update the document detail template to remove inline styles:

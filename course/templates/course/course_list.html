@@ -5,12 +5,12 @@
 {% block content %}
 <div class="courses-container">
     <div class="page-header">
-        <h1>Generated Courses</h1>
+        <h1>📚 Generated Courses</h1>
         <div class="header-actions">
             <button class="btn btn-primary" onclick="exportCourses()">
-                Export All Courses
+                📤 Export All Courses
             </button>
-            <a href="{% url 'home' %}" class="btn">Back to Documents</a>
+            <a href="{% url 'home' %}" class="btn btn-secondary">← Back to Documents</a>
         </div>
     </div>
     
@@ -18,28 +18,31 @@
         <div class="courses-grid">
             {% for course in courses %}
             <div class="course-card">
-                <div class="course-header">
+                <div class="flex justify-between items-start mb-3">
                     <h3 class="course-title">{{ course.course_name }}</h3>
-                    <span class="course-badge">{{ course.lessons.count }} Lessons</span>
+                    <span class="badge badge-info">📚 {{ course.lessons.count }} Lessons</span>
                 </div>
-                <div class="course-meta">
-                    <div class="meta-row">
-                        <strong>Role:</strong> {{ course.role }}
+                
+                <div class="card mb-3" style="background: var(--gray-50); padding: var(--spacing-md);">
+                    <div class="mb-2">
+                        <strong>👔 Role:</strong> {{ course.role }}
                     </div>
-                    <div class="meta-row">
-                        <strong>Industry:</strong> {{ course.industry }}
+                    <div class="mb-2">
+                        <strong>🏢 Industry:</strong> {{ course.industry }}
                     </div>
-                    <div class="meta-row">
-                        <strong>Document:</strong> {{ course.document.title|truncatewords:10 }}
+                    <div class="mb-2">
+                        <strong>📄 Document:</strong> {{ course.document.title|truncatewords:10 }}
                     </div>
                 </div>
-                <div class="course-topic">
+                
+                <div class="mb-4">
                     {% with topic_desc=course.get_topic_description %}
-                    <strong>Topic:</strong> {{ topic_desc.topic }}
+                    <strong>🎯 Topic:</strong> {{ topic_desc.topic }}
                     {% endwith %}
                 </div>
-                <div class="course-actions">
-                    <a href="{% url 'course_detail' course.id %}" class="btn btn-small">View Course</a>
+                
+                <div class="flex justify-end">
+                    <a href="{% url 'course_detail' course.id %}" class="btn btn-primary btn-small">👁️ View Course</a>
                 </div>
             </div>
             {% endfor %}
@@ -65,115 +68,18 @@
         </div>
         {% endif %}
     {% else %}
-        <div class="empty-state">
-            <h2>No courses generated yet</h2>
-            <p>Process documents and generate courses to see them here.</p>
-            <a href="{% url 'home' %}" class="btn">Go to Documents</a>
+        <div class="empty-message">
+            <div class="text-center">
+                <div class="mb-4">
+                    <div style="font-size: 4rem;">📚</div>
+                </div>
+                <h2>No courses generated yet</h2>
+                <p>Process documents and generate courses to see them here.</p>
+                <a href="{% url 'home' %}" class="btn btn-primary">📄 Go to Documents</a>
+            </div>
         </div>
     {% endif %}
 </div>
-
-<style>
-    .courses-container {
-        max-width: 1200px;
-        margin: 0 auto;
-    }
-    
-    .page-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 30px;
-        padding-bottom: 20px;
-        border-bottom: 2px solid #e8eaed;
-    }
-    
-    .header-actions {
-        display: flex;
-        gap: 12px;
-    }
-    
-    .courses-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-        gap: 24px;
-        margin-bottom: 40px;
-    }
-    
-    .course-card {
-        background: white;
-        border-radius: 12px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-        padding: 24px;
-        transition: all 0.3s ease;
-        border: 1px solid #e8eaed;
-    }
-    
-    .course-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 24px rgba(0,0,0,0.12);
-    }
-    
-    .course-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: start;
-        margin-bottom: 16px;
-    }
-    
-    .course-title {
-        font-size: 20px;
-        color: #1a73e8;
-        margin: 0;
-        flex: 1;
-        line-height: 1.4;
-    }
-    
-    .course-badge {
-        background: #e8f0fe;
-        color: #1a73e8;
-        padding: 4px 12px;
-        border-radius: 16px;
-        font-size: 14px;
-        font-weight: 500;
-        white-space: nowrap;
-        margin-left: 12px;
-    }
-    
-    .course-meta {
-        margin-bottom: 16px;
-        padding: 12px;
-        background: #f8f9fa;
-        border-radius: 8px;
-    }
-    
-    .meta-row {
-        margin-bottom: 4px;
-        font-size: 14px;
-        color: #5f6368;
-    }
-    
-    .meta-row:last-child {
-        margin-bottom: 0;
-    }
-    
-    .course-topic {
-        margin-bottom: 20px;
-        font-size: 15px;
-        line-height: 1.5;
-        color: #3c4043;
-    }
-    
-    .course-actions {
-        display: flex;
-        justify-content: flex-end;
-    }
-    
-    .btn-small {
-        padding: 8px 16px;
-        font-size: 14px;
-    }
-</style>
 
 <script>
     function getCSRFToken() {
@@ -196,13 +102,13 @@
             });
             
             if (response.ok) {
-                alert('Course export started! Check the exports folder.');
+                alert('Course export started! Check the exports folder. 🎉');
             } else {
-                alert('Error starting export');
+                alert('Export failed. Please try again.');
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('Error starting export');
+            alert('Export failed. Please try again.');
         }
     }
 </script>

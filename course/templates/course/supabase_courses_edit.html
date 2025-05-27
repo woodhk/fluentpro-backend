@@ -2,292 +2,26 @@
 
 {% block title %}Edit Course - {{ course.course_name }}{% endblock %}
 
-{% block extra_css %}
-<style>
-    .edit-container {
-        max-width: 1200px;
-        margin: 0 auto;
-    }
-    
-    .edit-header {
-        background: linear-gradient(135deg, #3ECF8E 0%, #1E8B5C 100%);
-        color: white;
-        padding: 30px;
-        border-radius: 12px;
-        margin-bottom: 30px;
-        box-shadow: 0 4px 12px rgba(62, 207, 142, 0.3);
-    }
-    
-    .edit-header h1 {
-        margin: 0 0 10px 0;
-        font-size: 28px;
-    }
-    
-    .edit-status {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        margin-top: 15px;
-    }
-    
-    .save-indicator {
-        display: none;
-        padding: 6px 12px;
-        background: rgba(255, 255, 255, 0.2);
-        border-radius: 20px;
-        font-size: 14px;
-    }
-    
-    .save-indicator.saving {
-        display: inline-block;
-        animation: pulse 1s infinite;
-    }
-    
-    .save-indicator.saved {
-        display: inline-block;
-        background: rgba(76, 175, 80, 0.3);
-    }
-    
-    @keyframes pulse {
-        0% { opacity: 1; }
-        50% { opacity: 0.5; }
-        100% { opacity: 1; }
-    }
-    
-    .course-info-section {
-        background: white;
-        border-radius: 12px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-        padding: 30px;
-        margin-bottom: 30px;
-    }
-    
-    .edit-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-        gap: 20px;
-        margin-bottom: 20px;
-    }
-    
-    .edit-field {
-        margin-bottom: 20px;
-    }
-    
-    .edit-field label {
-        display: block;
-        font-weight: 600;
-        color: #3c4043;
-        margin-bottom: 8px;
-        font-size: 14px;
-    }
-    
-    .edit-field input,
-    .edit-field textarea {
-        width: 100%;
-        padding: 12px;
-        border: 2px solid #e8eaed;
-        border-radius: 8px;
-        font-size: 15px;
-        transition: all 0.3s ease;
-        font-family: inherit;
-    }
-    
-    .edit-field input:focus,
-    .edit-field textarea:focus {
-        outline: none;
-        border-color: #3ECF8E;
-        box-shadow: 0 0 0 3px rgba(62, 207, 142, 0.1);
-    }
-    
-    .edit-field textarea {
-        min-height: 100px;
-        resize: vertical;
-    }
-    
-    .lessons-section {
-        margin-bottom: 40px;
-    }
-    
-    .lessons-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 24px;
-    }
-    
-    .lessons-header h2 {
-        font-size: 24px;
-        color: #3c4043;
-        margin: 0;
-    }
-    
-    .lesson-card {
-        background: white;
-        border-radius: 12px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-        padding: 24px;
-        margin-bottom: 20px;
-        border: 2px solid transparent;
-        transition: all 0.3s ease;
-    }
-    
-    .lesson-card:hover {
-        border-color: #3ECF8E;
-    }
-    
-    .lesson-card.editing {
-        border-color: #3ECF8E;
-        box-shadow: 0 4px 16px rgba(62, 207, 142, 0.2);
-    }
-    
-    .lesson-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 20px;
-    }
-    
-    .lesson-title {
-        font-size: 18px;
-        color: #1a73e8;
-        margin: 0;
-    }
-    
-    .lesson-actions {
-        display: flex;
-        gap: 8px;
-    }
-    
-    .btn-icon {
-        background: #f8f9fa;
-        border: none;
-        padding: 8px 12px;
-        border-radius: 6px;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        font-size: 14px;
-    }
-    
-    .btn-icon:hover {
-        background: #e8eaed;
-    }
-    
-    .btn-save {
-        background: #3ECF8E;
-        color: white;
-    }
-    
-    .btn-save:hover {
-        background: #2BA96F;
-    }
-    
-    .language-aim-group {
-        background: #f8f9fa;
-        padding: 16px;
-        border-radius: 8px;
-        margin-bottom: 12px;
-    }
-    
-    .language-aim-group h5 {
-        margin: 0 0 12px 0;
-        color: #1a73e8;
-        font-size: 16px;
-    }
-    
-    .example-list {
-        list-style: none;
-        padding: 0;
-    }
-    
-    .example-item {
-        margin-bottom: 8px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-    
-    .example-item input {
-        flex: 1;
-        padding: 8px 12px;
-        border: 1px solid #dadce0;
-        border-radius: 6px;
-        font-size: 14px;
-    }
-    
-    .edit-history {
-        margin-top: 40px;
-        padding: 20px;
-        background: #f8f9fa;
-        border-radius: 12px;
-    }
-    
-    .history-item {
-        padding: 12px;
-        border-bottom: 1px solid #e8eaed;
-        font-size: 14px;
-    }
-    
-    .history-item:last-child {
-        border-bottom: none;
-    }
-    
-    .auto-save-notice {
-        position: fixed;
-        bottom: 30px;
-        right: 30px;
-        background: #3ECF8E;
-        color: white;
-        padding: 12px 20px;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        display: none;
-        animation: slideIn 0.3s ease;
-    }
-    
-    @keyframes slideIn {
-        from {
-            transform: translateX(100%);
-            opacity: 0;
-        }
-        to {
-            transform: translateX(0);
-            opacity: 1;
-        }
-    }
-    
-    .navigation-buttons {
-        position: sticky;
-        top: 20px;
-        z-index: 100;
-        background: white;
-        padding: 16px;
-        border-radius: 8px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-        margin-bottom: 20px;
-    }
-</style>
-{% endblock %}
-
 {% block content %}
-<div class="edit-container">
-    <div class="edit-header">
+<div class="automation-container">
+    <div class="automation-card">
         <h1>✏️ Edit Course</h1>
         <p>All changes are saved automatically</p>
-        <div class="edit-status">
-            <span class="save-indicator" id="saveIndicator">Saving...</span>
+        <div class="badge badge-info" id="saveIndicator" style="display: none;">
+            Saving...
         </div>
     </div>
     
-    <div class="navigation-buttons">
-        <a href="{% url 'supabase_courses' %}" class="btn">← Back to Courses</a>
-        <button class="btn btn-primary" onclick="showEditHistory()">View Edit History</button>
+    <div class="button-group mb-4">
+        <a href="{% url 'supabase_courses' %}" class="btn btn-secondary">← Back to Courses</a>
+        <button class="btn" onclick="showEditHistory()">📜 View Edit History</button>
     </div>
     
-    <div class="course-info-section">
-        <h2>Course Information</h2>
-        <div class="edit-grid">
-            <div class="edit-field">
-                <label for="courseName">Course Name</label>
+    <div class="card mb-4">
+        <h2>📝 Course Information</h2>
+        <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: var(--spacing-lg);">
+            <div class="mb-3">
+                <label class="block mb-2 font-weight-600">Course Name</label>
                 <input 
                     type="text" 
                     id="courseName" 
@@ -295,10 +29,11 @@
                     data-field="course_name"
                     data-type="course"
                     onblur="saveField(this)"
+                    class="w-full"
                 >
             </div>
-            <div class="edit-field">
-                <label for="role">Role</label>
+            <div class="mb-3">
+                <label class="block mb-2 font-weight-600">Role</label>
                 <input 
                     type="text" 
                     id="role" 
@@ -306,10 +41,11 @@
                     data-field="role"
                     data-type="course"
                     onblur="saveField(this)"
+                    class="w-full"
                 >
             </div>
-            <div class="edit-field">
-                <label for="industry">Industry</label>
+            <div class="mb-3">
+                <label class="block mb-2 font-weight-600">Industry</label>
                 <input 
                     type="text" 
                     id="industry" 
@@ -317,33 +53,36 @@
                     data-field="industry"
                     data-type="course"
                     onblur="saveField(this)"
+                    class="w-full"
                 >
             </div>
         </div>
         
         {% if course.topic_description %}
-        <div class="edit-field">
-            <label>Topic Description</label>
-            <div style="padding: 16px; background: #f8f9fa; border-radius: 8px;">
-                <strong>{{ course.topic_description.topic }}</strong>
-                <p style="margin-top: 8px;">{{ course.topic_description.description }}</p>
+        <div class="mt-4">
+            <label class="block mb-2 font-weight-600">Topic Description</label>
+            <div class="structured-section">
+                <div class="section-content">
+                    <strong>{{ course.topic_description.topic }}</strong>
+                    <p class="mt-2">{{ course.topic_description.description }}</p>
+                </div>
             </div>
         </div>
         {% endif %}
     </div>
     
-    <div class="lessons-section">
-        <div class="lessons-header">
-            <h2>Lessons ({{ course.lessons|length }})</h2>
+    <div class="card">
+        <div class="flex justify-between items-center mb-4">
+            <h2>📚 Lessons ({{ course.lessons|length }})</h2>
         </div>
         
         {% for lesson in course.lessons %}
-        <div class="lesson-card" id="lesson-{{ lesson.id }}">
-            <div class="lesson-header">
-                <h3 class="lesson-title">Lesson {{ lesson.lesson_number }}: {{ lesson.lesson_title }}</h3>
-                <div class="lesson-actions">
-                    <button class="btn-icon" data-lesson-id="{{ lesson.id }}" onclick="toggleLessonEdit(this.dataset.lessonId)">
-                        <span id="edit-btn-{{ lesson.id }}">Edit</span>
+        <div class="card mb-4" id="lesson-{{ lesson.id }}">
+            <div class="flex justify-between items-center mb-3">
+                <h3 class="text-primary">Lesson {{ lesson.lesson_number }}: {{ lesson.lesson_title }}</h3>
+                <div class="flex gap-2">
+                    <button class="btn btn-small" data-lesson-id="{{ lesson.id }}" onclick="toggleLessonEdit(this.dataset.lessonId)">
+                        <span id="edit-btn-{{ lesson.id }}">✏️ Edit</span>
                     </button>
                 </div>
             </div>
@@ -351,54 +90,60 @@
             <div class="lesson-content" id="lesson-content-{{ lesson.id }}">
                 <!-- View Mode -->
                 <div class="lesson-view" id="lesson-view-{{ lesson.id }}">
-                    <div class="edit-field">
-                        <label>Introduction</label>
-                        <p>{{ lesson.lesson_introduction }}</p>
+                    <div class="structured-section">
+                        <h4>📝 Introduction</h4>
+                        <div class="section-content">{{ lesson.lesson_introduction }}</div>
                     </div>
                     
                     {% if lesson.skill_aims %}
-                    <div class="edit-field">
-                        <label>Skill Aims</label>
-                        <ul>
-                            {% for aim in lesson.skill_aims %}
-                            <li>{{ aim }}</li>
-                            {% endfor %}
-                        </ul>
+                    <div class="structured-section">
+                        <h4>🎯 Skill Aims</h4>
+                        <div class="section-content">
+                            <ul>
+                                {% for aim in lesson.skill_aims %}
+                                <li>{{ aim }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
                     </div>
                     {% endif %}
                     
                     {% if lesson.language_learning_aims %}
-                    <div class="edit-field">
-                        <label>Language Learning Aims</label>
-                        {% for category, examples in lesson.language_learning_aims.items %}
-                        <div class="language-aim-group">
-                            <h5>{{ category }}</h5>
-                            <ul class="example-list">
-                                {% for example in examples %}
-                                <li>"{{ example }}"</li>
-                                {% endfor %}
-                            </ul>
+                    <div class="structured-section">
+                        <h4>🗣️ Language Learning Aims</h4>
+                        <div class="section-content">
+                            {% for category, examples in lesson.language_learning_aims.items %}
+                            <div class="card mb-3" style="background: var(--gray-50); padding: var(--spacing-md);">
+                                <h5 class="text-primary">{{ category }}</h5>
+                                <ul class="list-style-none">
+                                    {% for example in examples %}
+                                    <li class="mb-1 italic">"{{ example }}"</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                            {% endfor %}
                         </div>
-                        {% endfor %}
                     </div>
                     {% endif %}
                     
                     {% if lesson.lesson_summary %}
-                    <div class="edit-field">
-                        <label>Lesson Summary</label>
-                        <ul>
-                            {% for point in lesson.lesson_summary %}
-                            <li>{{ point }}</li>
-                            {% endfor %}
-                        </ul>
+                    <div class="structured-section">
+                        <h4>📋 Lesson Summary</h4>
+                        <div class="section-content">
+                            <ul>
+                                {% for point in lesson.lesson_summary %}
+                                <li>{{ point }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
                     </div>
                     {% endif %}
                 </div>
                 
                 <!-- Edit Mode -->
                 <div class="lesson-edit" id="lesson-edit-{{ lesson.id }}" style="display: none;">
-                    <div class="edit-field">
-                        <label>Title</label>
+                    <div class="mb-3">
+                        <label class="block mb-2 font-weight-600">Title</label>
                         <input 
                             type="text" 
                             value="{{ lesson.lesson_title }}"
@@ -406,37 +151,44 @@
                             data-type="lesson"
                             data-lesson-id="{{ lesson.id }}"
                             onblur="saveField(this)"
+                            class="w-full"
                         >
                     </div>
                     
-                    <div class="edit-field">
-                        <label>Introduction</label>
+                    <div class="mb-3">
+                        <label class="block mb-2 font-weight-600">Introduction</label>
                         <textarea 
                             data-field="lesson_introduction"
                             data-type="lesson"
                             data-lesson-id="{{ lesson.id }}"
                             onblur="saveField(this)"
+                            class="w-full"
+                            rows="4"
                         >{{ lesson.lesson_introduction }}</textarea>
                     </div>
                     
-                    <div class="edit-field">
-                        <label>Skill Aims (one per line)</label>
+                    <div class="mb-3">
+                        <label class="block mb-2 font-weight-600">Skill Aims (one per line)</label>
                         <textarea 
                             data-field="skill_aims"
                             data-type="lesson"
                             data-lesson-id="{{ lesson.id }}"
                             onblur="saveField(this)"
+                            class="w-full"
+                            rows="4"
                         >{% for aim in lesson.skill_aims %}{{ aim }}
 {% endfor %}</textarea>
                     </div>
                     
-                    <div class="edit-field">
-                        <label>Lesson Summary (one per line)</label>
+                    <div class="mb-3">
+                        <label class="block mb-2 font-weight-600">Lesson Summary (one per line)</label>
                         <textarea 
                             data-field="lesson_summary"
                             data-type="lesson"
                             data-lesson-id="{{ lesson.id }}"
                             onblur="saveField(this)"
+                            class="w-full"
+                            rows="4"
                         >{% for point in lesson.lesson_summary %}{{ point }}
 {% endfor %}</textarea>
                     </div>
@@ -446,13 +198,13 @@
         {% endfor %}
     </div>
     
-    <div id="editHistory" class="edit-history" style="display: none;">
-        <h3>Edit History</h3>
-        <div id="historyContent"></div>
+    <div id="editHistory" class="card mt-4" style="display: none;">
+        <h3>📜 Edit History</h3>
+        <div id="historyContent" class="mt-3"></div>
     </div>
 </div>
 
-<div class="auto-save-notice" id="autoSaveNotice">
+<div class="badge badge-success position-fixed" id="autoSaveNotice" style="display: none; bottom: 30px; right: 30px; z-index: 1000;">
     ✓ Changes saved
 </div>
 
@@ -475,14 +227,14 @@
             // Switch to view mode
             viewDiv.style.display = 'block';
             editDiv.style.display = 'none';
-            editBtn.textContent = 'Edit';
-            lessonCard.classList.remove('editing');
+            editBtn.textContent = '✏️ Edit';
+            lessonCard.style.borderColor = 'var(--gray-200)';
         } else {
             // Switch to edit mode
             viewDiv.style.display = 'none';
             editDiv.style.display = 'block';
-            editBtn.textContent = 'Done';
-            lessonCard.classList.add('editing');
+            editBtn.textContent = '👁️ View';
+            lessonCard.style.borderColor = 'var(--primary-color)';
         }
     }
     
@@ -494,7 +246,8 @@
         // Show saving indicator
         const indicator = document.getElementById('saveIndicator');
         indicator.textContent = 'Saving...';
-        indicator.className = 'save-indicator saving';
+        indicator.className = 'badge badge-warning';
+        indicator.style.display = 'inline-block';
         
         try {
             const endpoint = type === 'course' ? '/api/update-course/' : '/api/update-lesson/';
@@ -521,22 +274,16 @@
             if (response.ok) {
                 // Show saved indicator
                 indicator.textContent = '✓ Saved';
-                indicator.className = 'save-indicator saved';
+                indicator.className = 'badge badge-success';
                 
                 // Show auto-save notice
                 const notice = document.getElementById('autoSaveNotice');
                 notice.style.display = 'block';
                 setTimeout(() => {
                     notice.style.display = 'none';
+                    indicator.style.display = 'none';
                 }, 2000);
                 
-                // If saving array fields, update the view
-                if (['skill_aims', 'lesson_summary'].includes(field)) {
-                    const lessonId = element.dataset.lessonId;
-                    const viewDiv = document.getElementById(`lesson-view-${lessonId}`);
-                    // Optionally reload the lesson data
-                    // await reloadLesson(lessonId);
-                }
             } else {
                 alert('Error saving changes');
                 indicator.style.display = 'none';
@@ -558,15 +305,15 @@
             
             if (data.history && data.history.length > 0) {
                 historyContent.innerHTML = data.history.map(item => `
-                    <div class="history-item">
-                        <strong>${item.field_name}</strong> changed by ${item.edited_by}<br>
-                        <small>${new Date(item.edited_at).toLocaleString()}</small><br>
-                        <span style="color: #888;">Old: ${item.old_value}</span><br>
-                        <span style="color: #3ECF8E;">New: ${item.new_value}</span>
+                    <div class="card mb-2 p-3">
+                        <div class="mb-1"><strong>${item.field_name}</strong> changed by ${item.edited_by}</div>
+                        <div class="mb-1"><small class="text-muted">${new Date(item.edited_at).toLocaleString()}</small></div>
+                        <div class="mb-1" style="color: var(--gray-500);">Old: ${item.old_value}</div>
+                        <div style="color: var(--primary-color);">New: ${item.new_value}</div>
                     </div>
                 `).join('');
             } else {
-                historyContent.innerHTML = '<p>No edit history available.</p>';
+                historyContent.innerHTML = '<div class="empty-message"><p>No edit history available.</p></div>';
             }
             
             historyDiv.style.display = 'block';

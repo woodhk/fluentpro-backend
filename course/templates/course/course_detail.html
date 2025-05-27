@@ -4,92 +4,100 @@
 
 {% block content %}
 <div class="course-detail">
-    <div class="course-header-section">
+    <div class="detail-header">
         <h1>{{ course.course_name }}</h1>
-        <div class="course-info">
-            <div class="info-item">
-                <strong>Role:</strong> {{ course.role }}
+        <div class="detail-meta">
+            <div class="meta-item">
+                <strong>👔 Role:</strong> {{ course.role }}
             </div>
-            <div class="info-item">
-                <strong>Industry:</strong> {{ course.industry }}
+            <div class="meta-item">
+                <strong>🏢 Industry:</strong> {{ course.industry }}
             </div>
-            <div class="info-item">
-                <strong>Document:</strong> {{ course.document.title }}
+            <div class="meta-item">
+                <strong>📄 Document:</strong> {{ course.document.title }}
             </div>
-            <div class="info-item">
-                <strong>Created:</strong> {{ course.created_at|date:"Y-m-d H:i:s" }}
+            <div class="meta-item">
+                <strong>📅 Created:</strong> {{ course.created_at|date:"Y-m-d H:i:s" }}
             </div>
         </div>
         
         {% if topic_description %}
-        <div class="topic-section">
-            <h3>Topic Overview</h3>
-            <div class="topic-content">
-                <strong>{{ topic_description.topic }}</strong>
-                <p>{{ topic_description.description }}</p>
+        <div class="mt-4 pt-4" style="border-top: 1px solid var(--gray-200);">
+            <h3>🎯 Topic Overview</h3>
+            <div class="structured-section">
+                <div class="section-content">
+                    <strong>{{ topic_description.topic }}</strong>
+                    <p>{{ topic_description.description }}</p>
+                </div>
             </div>
         </div>
         {% endif %}
     </div>
     
-    <div class="lessons-section">
-        <h2>Lessons ({{ lessons.count }})</h2>
+    <div class="card">
+        <h2>📚 Lessons ({{ lessons.count }})</h2>
         
-        <div class="lessons-list">
+        <div class="mt-4">
             {% for lesson in lessons %}
-            <div class="lesson-card {% if lesson.is_bonus %}bonus-lesson{% endif %}">
-                <div class="lesson-header">
-                    <h3>Lesson {{ lesson.lesson_number }}: {{ lesson.lesson_title }}</h3>
+            <div class="card mb-4 {% if lesson.is_bonus %}border-warning{% endif %}">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="text-primary">Lesson {{ lesson.lesson_number }}: {{ lesson.lesson_title }}</h3>
                     {% if lesson.is_bonus %}
-                        <span class="bonus-badge">Bonus</span>
+                        <span class="badge badge-warning">🎁 Bonus</span>
                     {% endif %}
                 </div>
                 
-                <div class="lesson-introduction">
-                    <h4>Introduction</h4>
-                    <p>{{ lesson.lesson_introduction }}</p>
+                <div class="structured-section">
+                    <h4>📝 Introduction</h4>
+                    <div class="section-content">{{ lesson.lesson_introduction }}</div>
                 </div>
                 
                 {% with skill_aims=lesson.get_skill_aims %}
                 {% if skill_aims %}
-                <div class="skill-aims">
-                    <h4>Skill Aims of the Lesson</h4>
-                    <ul>
-                        {% for aim in skill_aims %}
-                        <li>{{ aim }}</li>
-                        {% endfor %}
-                    </ul>
+                <div class="structured-section">
+                    <h4>🎯 Skill Aims of the Lesson</h4>
+                    <div class="section-content">
+                        <ul>
+                            {% for aim in skill_aims %}
+                            <li>{{ aim }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
                 </div>
                 {% endif %}
                 {% endwith %}
                 
                 {% with lang_aims=lesson.get_language_learning_aims %}
                 {% if lang_aims %}
-                <div class="language-aims">
-                    <h4>Language Learning Aims</h4>
-                    {% for category, examples in lang_aims.items %}
-                    <div class="language-category">
-                        <h5>{{ category }}</h5>
-                        <ul class="examples-list">
-                            {% for example in examples %}
-                            <li>"{{ example }}"</li>
-                            {% endfor %}
-                        </ul>
+                <div class="structured-section">
+                    <h4>🗣️ Language Learning Aims</h4>
+                    <div class="section-content">
+                        {% for category, examples in lang_aims.items %}
+                        <div class="card mb-3" style="background: var(--gray-50); padding: var(--spacing-md);">
+                            <h5 class="text-primary">{{ category }}</h5>
+                            <ul class="list-style-none">
+                                {% for example in examples %}
+                                <li class="mb-1 italic">"{{ example }}"</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endfor %}
                     </div>
-                    {% endfor %}
                 </div>
                 {% endif %}
                 {% endwith %}
                 
                 {% with summary=lesson.get_lesson_summary %}
                 {% if summary %}
-                <div class="lesson-summary">
-                    <h4>Lesson Summary</h4>
-                    <ul>
-                        {% for point in summary %}
-                        <li>{{ point }}</li>
-                        {% endfor %}
-                    </ul>
+                <div class="structured-section">
+                    <h4>📋 Lesson Summary</h4>
+                    <div class="section-content">
+                        <ul>
+                            {% for point in summary %}
+                            <li>{{ point }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
                 </div>
                 {% endif %}
                 {% endwith %}
@@ -99,155 +107,12 @@
     </div>
     
     <div class="actions">
-        <a href="{% url 'courses_list' %}" class="btn">Back to Courses</a>
-        <button class="btn btn-primary" onclick="exportCourse('{{ course.id }}')">Export This Course</button>
+        <div class="button-group">
+            <a href="{% url 'courses_list' %}" class="btn btn-secondary">← Back to Courses</a>
+            <button class="btn btn-primary" onclick="exportCourse('{{ course.id }}')">📤 Export This Course</button>
+        </div>
     </div>
 </div>
-
-<style>
-    .course-detail {
-        max-width: 1000px;
-        margin: 0 auto;
-    }
-    
-    .course-header-section {
-        background: white;
-        padding: 30px;
-        border-radius: 12px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-        margin-bottom: 30px;
-    }
-    
-    .course-header-section h1 {
-        color: #1a73e8;
-        margin-bottom: 20px;
-    }
-    
-    .course-info {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 16px;
-        margin-bottom: 20px;
-    }
-    
-    .info-item {
-        padding: 12px;
-        background: #f8f9fa;
-        border-radius: 8px;
-    }
-    
-    .topic-section {
-        margin-top: 30px;
-        padding-top: 20px;
-        border-top: 1px solid #e8eaed;
-    }
-    
-    .topic-content {
-        padding: 16px;
-        background: #e8f0fe;
-        border-radius: 8px;
-        margin-top: 12px;
-    }
-    
-    .lessons-section {
-        margin-bottom: 40px;
-    }
-    
-    .lessons-section h2 {
-        margin-bottom: 24px;
-        color: #202124;
-    }
-    
-    .lessons-list {
-        display: flex;
-        flex-direction: column;
-        gap: 24px;
-    }
-    
-    .lesson-card {
-        background: white;
-        border-radius: 12px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-        padding: 30px;
-        border: 1px solid #e8eaed;
-    }
-    
-    .lesson-card.bonus-lesson {
-        border-left: 4px solid #ff9800;
-    }
-    
-    .lesson-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 20px;
-    }
-    
-    .lesson-header h3 {
-        color: #1a73e8;
-        margin: 0;
-    }
-    
-    .bonus-badge {
-        background: #ff9800;
-        color: white;
-        padding: 4px 12px;
-        border-radius: 16px;
-        font-size: 14px;
-        font-weight: 500;
-    }
-    
-    .lesson-introduction,
-    .skill-aims,
-    .language-aims,
-    .lesson-summary {
-        margin-bottom: 24px;
-    }
-    
-    .lesson-introduction:last-child,
-    .skill-aims:last-child,
-    .language-aims:last-child,
-    .lesson-summary:last-child {
-        margin-bottom: 0;
-    }
-    
-    h4 {
-        color: #5f6368;
-        font-size: 16px;
-        font-weight: 600;
-        margin-bottom: 12px;
-    }
-    
-    .language-category {
-        margin-bottom: 16px;
-        padding: 12px;
-        background: #f8f9fa;
-        border-radius: 8px;
-    }
-    
-    .language-category h5 {
-        color: #1a73e8;
-        font-size: 15px;
-        margin-bottom: 8px;
-    }
-    
-    .examples-list {
-        list-style: none;
-        padding: 0;
-    }
-    
-    .examples-list li {
-        padding: 4px 0;
-        color: #3c4043;
-        font-style: italic;
-    }
-    
-    .actions {
-        display: flex;
-        justify-content: space-between;
-        margin-top: 40px;
-    }
-</style>
 
 <script>
     function getCSRFToken() {
@@ -271,13 +136,13 @@
             });
             
             if (response.ok) {
-                alert('Course export started! Check the exports folder.');
+                alert('Course export started! Check the exports folder. 🎉');
             } else {
-                alert('Error starting export');
+                alert('Export failed. Please try again.');
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('Error starting export');
+            alert('Export failed. Please try again.');
         }
     }
 </script>

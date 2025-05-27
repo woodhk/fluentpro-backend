@@ -4,79 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}FluentPro{% endblock %}</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background-color: #f5f5f5;
-            color: #333;
-            line-height: 1.6;
-        }
-        
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        
-        header {
-            background-color: white;
-            border-bottom: 1px solid #e0e0e0;
-            padding: 20px 0;
-            margin-bottom: 30px;
-        }
-        
-        header h1 {
-            text-align: center;
-            font-size: 1.8rem;
-            color: #333;
-            font-weight: normal;
-        }
-        
-        .btn {
-            background-color: #4285f4;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            font-size: 16px;
-            border-radius: 4px;
-            cursor: pointer;
-            text-decoration: none;
-            display: inline-block;
-            font-weight: 500;
-        }
-        
-        .btn:hover {
-            background-color: #357ae8;
-        }
-        
-        .btn:disabled {
-            background-color: #ccc;
-            cursor: not-allowed;
-        }
-        
-        .btn-primary {
-            background-color: #4285f4;
-        }
-        
-        .btn-secondary {
-            background-color: #34a853;
-        }
-        
-        a {
-            color: #4285f4;
-            text-decoration: none;
-        }
-        
-        a:hover {
-            text-decoration: underline;
-        }
-    </style>
+    
+    <!-- Load static files -->
+    {% load static %}
+    
+    <!-- External CSS -->
+    <link rel="stylesheet" href="{% static 'course/css/styles.css' %}">
+    
     {% block extra_css %}{% endblock %}
 </head>
 <body>
