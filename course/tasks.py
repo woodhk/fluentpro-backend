@@ -113,34 +113,29 @@ def process_document_pipeline(self, document_id, remaining_doc_ids=None):
         status.current_stage = 'Document Pipeline'
         status.save()
         
-        # Chain the tasks for sequential execution
-        workflow = chain(
-            process_document_with_rag_safe.si(document_id),
-            generate_courses_for_document_safe.si(document_id),
-            export_and_upload_to_supabase.si(document_id)
-        )
-        
-        # Execute the chain
-        result = workflow.apply_async()
-        
-        # Wait for completion with timeout
-        result.get(timeout=600)  # 10 minute timeout
-        
-        logger.info(f"=== Completed pipeline for document {document_id} ===")
-        
-        # Process next document if any
+        # Chain the tasks for sequential execution with callback
         if remaining_doc_ids:
-            next_doc_id = remaining_doc_ids[0]
-            remaining = remaining_doc_ids[1:]
-            logger.info(f"Processing next document: {next_doc_id}")
-            process_document_pipeline.delay(next_doc_id, remaining)
+            # If there are more documents to process, set up the callback
+            workflow = chain(
+                process_document_with_rag_safe.si(document_id),
+                generate_courses_for_document_safe.si(document_id),
+                export_and_upload_to_supabase.si(document_id),
+                process_next_document_in_pipeline.si(remaining_doc_ids)
+            )
         else:
-            # All documents processed
-            status.status = 'completed'
-            status.message = 'All documents processed successfully'
-            status.current_stage = ''
-            status.save()
-            logger.info("=== All documents processed successfully ===")
+            # This is the last document, set up final completion
+            workflow = chain(
+                process_document_with_rag_safe.si(document_id),
+                generate_courses_for_document_safe.si(document_id),
+                export_and_upload_to_supabase.si(document_id),
+                complete_document_pipeline.si()
+            )
+        
+        # Execute the chain asynchronously (don't wait for result)
+        workflow.apply_async()
+        
+        logger.info(f"=== Started pipeline for document {document_id} ===")
+        return f"Started pipeline for document {document_id}"
             
     except Exception as e:
         logger.error(f"Pipeline error for document {document_id}: {str(e)}")
@@ -158,10 +153,40 @@ def process_document_pipeline(self, document_id, remaining_doc_ids=None):
             )
         
         # Update status for other errors
+        status, _ = ProcessingStatus.objects.get_or_create(pk=1)
         status.status = 'error'
         status.message = f'Pipeline error: {str(e)}'
         status.current_stage = ''
         status.save()
+        raise
+
+@shared_task
+def process_next_document_in_pipeline(remaining_doc_ids):
+    """Process the next document in the pipeline queue"""
+    if remaining_doc_ids:
+        next_doc_id = remaining_doc_ids[0]
+        remaining = remaining_doc_ids[1:]
+        logger.info(f"Processing next document in pipeline: {next_doc_id}")
+        process_document_pipeline.delay(next_doc_id, remaining)
+    else:
+        # No more documents to process
+        complete_document_pipeline.delay()
+    
+    return "Triggered next document processing"
+
+@shared_task
+def complete_document_pipeline():
+    """Complete the document pipeline processing"""
+    try:
+        status, _ = ProcessingStatus.objects.get_or_create(pk=1)
+        status.status = 'completed'
+        status.message = 'All documents processed successfully'
+        status.current_stage = ''
+        status.save()
+        logger.info("=== All documents processed successfully ===")
+        return "Pipeline completed successfully"
+    except Exception as e:
+        logger.error(f"Error completing pipeline: {str(e)}")
         raise
 
 @shared_task(bind=True, max_retries=3)
@@ -433,8 +458,8 @@ def process_all_documents_sequential():
 @shared_task
 def process_all_documents_with_rag():
     """Process all unprocessed documents with RAG sequentially"""
-    # This is just a wrapper for the sequential processing
-    return process_all_documents_sequential.delay()
+    # Call the sequential processing function directly
+    return process_all_documents_sequential()
 
 @shared_task
 def generate_courses_for_all_documents():
@@ -522,3 +547,8 @@ def export_courses_to_json(document_id=None):
     except Exception as e:
         logger.error(f"Error exporting courses: {str(e)}")
         raise
+
+@shared_task
+def generate_courses_for_document(document_id):
+    """Wrapper for generate_courses_for_document_safe for backward compatibility"""
+    return generate_courses_for_document_safe(document_id)

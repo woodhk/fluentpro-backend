@@ -18,6 +18,18 @@
             </button>
         </div>
         
+        <!-- Course Management Button - Always Visible -->
+        <div class="course-management-section">
+            <div class="divider">
+                <span>OR</span>
+            </div>
+            <a href="{% url 'supabase_courses' %}" class="btn btn-secondary btn-large course-btn">
+                <span class="btn-icon">📚</span>
+                View & Edit Courses
+            </a>
+            <p class="course-btn-description">Access your generated courses and lessons</p>
+        </div>
+        
         <!-- Progress Section (Initially Hidden) -->
         <div id="progressSection" style="display: none;">
             <div class="progress-container">
@@ -370,6 +382,69 @@
     
     .btn-danger:hover {
         background: #c82333;
+    }
+    
+    .course-management-section {
+        margin: 30px 0;
+        text-align: center;
+    }
+    
+    .divider {
+        position: relative;
+        margin: 20px 0;
+        text-align: center;
+    }
+    
+    .divider::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: #e0e0e0;
+        z-index: 1;
+    }
+    
+    .divider span {
+        background: white;
+        padding: 0 15px;
+        color: #666;
+        font-size: 14px;
+        position: relative;
+        z-index: 2;
+    }
+    
+    .btn-secondary {
+        background: #6c757d;
+        color: white;
+        border: none;
+    }
+    
+    .btn-secondary:hover {
+        background: #5a6268;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+    
+    .course-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        text-decoration: none;
+        transition: all 0.3s ease;
+        border-radius: 8px;
+    }
+    
+    .btn-icon {
+        font-size: 20px;
+    }
+    
+    .course-btn-description {
+        margin-top: 8px;
+        color: #666;
+        font-size: 14px;
+        margin-bottom: 0;
     }
 </style>
 

@@ -32,7 +32,7 @@ class OrchestratorOutput(BaseModel):
 
 class LessonIntro(BaseModel):
     """Basic lesson with introduction"""
-    lesson_number: int = Field(description="Sequential lesson number")
+    lesson_number: int = Field(description="Lesson number")
     lesson_title: str = Field(description="Title of the lesson")
     lesson_introduction: str = Field(description="Introduction paragraph for the lesson")
 
@@ -287,7 +287,7 @@ class CourseGenerationWorkflow:
     def _process_single_topic(self, topic_pair: Dict[str, str], role: str, industry: str, index: int) -> Dict[str, Any]:
         """Process a single topic-description pair"""
         prompt = f"""
-        Your task is to analyse the topic-description pair and create a course that breaks down the topic-description pair into sequential lessons. Each lesson zooms in on a specific moment within that bigger theme — a particular type of conversation, challenge, or task a {role} in the {industry} industry might face on the job. Lessons break the course down into realistic, manageable practice moments, so you can build your skills one situation at a time.
+        Your task is to analyse the topic-description pair and create a course that breaks down the topic-description pair into lessons. Each lesson zooms in on a specific moment within that bigger theme — a particular type of conversation, challenge, or task a {role} in the {industry} industry might face on the job. Lessons break the course down into realistic, manageable practice moments, so you can build your skills one situation at a time.
 
         Topic-description pair:
         Topic: {topic_pair['topic']}
@@ -343,15 +343,16 @@ class CourseGenerationWorkflow:
             Evaluate this course structure:
 
             Course: {output['course_name']}
+            Course Description: {output['course_description']}
             Topic: {output['topic_pair']['topic']}
+            Topic Description: {output['topic_pair']['description']}
             Lessons: {json.dumps(output['lessons'], indent=2)}
 
             Check if:
-            1. All lessons are relevant to the topic/course
-            2. All lessons are speaking/verbal communication related
-            3. Output is properly structured
-            4. The course name is the same as the topic of the topic-description pair.
-            5. The course description is the same as the description of the topic-description pair.
+            1. All lessons are speaking/verbal communication related
+            2. Output is properly structured
+            3. The course name is the same as the topic of the topic-description pair.
+            4. The course description is the same as the description of the topic-description pair.
             """
 
             try:

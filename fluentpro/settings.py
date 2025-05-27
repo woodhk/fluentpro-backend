@@ -150,12 +150,12 @@ GOOGLE_DOCS_TOKEN_FILE = BASE_DIR / 'token.json'
 GOOGLE_DOCS_SCOPES = ['https://www.googleapis.com/auth/documents.readonly',
                        'https://www.googleapis.com/auth/drive.readonly']
 
-CELERY_BEAT_SCHEDULE = {
-    'check-new-docs-every-5-hours': {
-        'task': 'course.tasks.check_for_new_docs',
-        'schedule': crontab(minute=0, hour='*/5'),  # Every 5 hours
-    },
-}
+# CELERY_BEAT_SCHEDULE = {
+#     'check-new-docs-every-5-hours': {
+#         'task': 'course.tasks.check_for_new_docs',
+#         'schedule': crontab(minute=0, hour='*/5'),  # Every 5 hours
+#     },
+# }
 
 OPENAI_API_KEY = config('OPENAI_API_KEY', default='')
 ANTHROPIC_API_KEY = config('ANTHROPIC_API_KEY', default='')
