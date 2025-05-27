@@ -169,3 +169,4 @@ MAX_RETRIES = 3  # Maximum retries for failed API calls
 # Supabase Configuration
 SUPABASE_URL = config('SUPABASE_URL', default='')
 SUPABASE_SERVICE_KEY = config('SUPABASE_SERVICE_KEY', default='')
+SUPABASE_ANON_KEY = config('SUPABASE_ANON_KEY', default='')
