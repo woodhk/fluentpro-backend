@@ -347,11 +347,11 @@ class CourseGenerationWorkflow:
             Lessons: {json.dumps(output['lessons'], indent=2)}
 
             Check if:
-            1. Lessons are in sequential order
-            2. All lessons are relevant to the topic
-            3. All lessons are speaking/verbal communication related
-            4. Output is properly structured
-            5. The course name is the same as the topic of the topic-description pair.
+            1. All lessons are relevant to the topic/course
+            2. All lessons are speaking/verbal communication related
+            3. Output is properly structured
+            4. The course name is the same as the topic of the topic-description pair.
+            5. The course description is the same as the description of the topic-description pair.
             """
 
             try:

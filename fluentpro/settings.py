@@ -165,3 +165,7 @@ GOOGLE_GEMINI_API_KEY = config('GOOGLE_GEMINI_API_KEY', default='')
 API_RATE_LIMIT_DELAY = 1  # Seconds between API calls
 MAX_CONCURRENT_WORKERS = 5  # Maximum parallel workers
 MAX_RETRIES = 3  # Maximum retries for failed API calls
+
+# Supabase Configuration
+SUPABASE_URL = config('SUPABASE_URL', default='')
+SUPABASE_SERVICE_KEY = config('SUPABASE_SERVICE_KEY', default='')

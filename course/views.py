@@ -5,6 +5,10 @@ from django.core.paginator import Paginator
 from .models import GoogleDocument, ProcessingStatus, GeneratedCourse, GeneratedLesson, CourseGenerationStatus
 from .tasks import check_for_new_docs, process_all_documents_with_rag, generate_courses_for_document, generate_courses_for_all_documents, export_courses_to_json
 import json
+from .supabase_service import SupabaseService
+import logging
+
+logger = logging.getLogger(__name__)
 
 def home(request):
     # Get documents with pagination
@@ -250,3 +254,150 @@ def clear_docs(request):
             'status': 'error',
             'message': str(e)
         }, status=500)
+    
+
+def supabase_courses_list(request):
+    """View to list all courses from Supabase"""
+    try:
+        supabase = SupabaseService()
+        courses = supabase.get_all_courses()
+        
+        # Add lesson count for each course
+        for course in courses:
+            # Get lessons count (you might need to adjust based on your schema)
+            lessons_response = supabase.client.table('lessons').select('id').eq('course_id', course['id']).execute()
+            course['lessons'] = len(lessons_response.data) if lessons_response.data else 0
+        
+        context = {
+            'courses': courses
+        }
+        return render(request, 'course/supabase_courses.html', context)
+    except Exception as e:
+        logger.error(f"Error fetching Supabase courses: {str(e)}")
+        context = {
+            'courses': [],
+            'error': str(e)
+        }
+        return render(request, 'course/supabase_courses.html', context)
+
+def supabase_course_edit(request, course_id):
+    """View to edit a course in Supabase"""
+    try:
+        supabase = SupabaseService()
+        course = supabase.get_course_with_lessons(course_id)
+        
+        if not course:
+            return JsonResponse({'error': 'Course not found'}, status=404)
+        
+        # Parse JSON fields for display
+        if course.get('topic_description') and isinstance(course['topic_description'], str):
+            import json as json_lib
+            try:
+                course['topic_description'] = json_lib.loads(course['topic_description'])
+            except:
+                pass
+        
+        # Parse lesson fields
+        for lesson in course.get('lessons', []):
+            # Parse skill_aims
+            if lesson.get('skill_aims') and isinstance(lesson['skill_aims'], str):
+                try:
+                    lesson['skill_aims'] = json_lib.loads(lesson['skill_aims'])
+                except:
+                    lesson['skill_aims'] = []
+            
+            # Parse language_learning_aims
+            if lesson.get('language_learning_aims') and isinstance(lesson['language_learning_aims'], str):
+                try:
+                    lesson['language_learning_aims'] = json_lib.loads(lesson['language_learning_aims'])
+                except:
+                    lesson['language_learning_aims'] = {}
+            
+            # Parse lesson_summary
+            if lesson.get('lesson_summary') and isinstance(lesson['lesson_summary'], str):
+                try:
+                    lesson['lesson_summary'] = json_lib.loads(lesson['lesson_summary'])
+                except:
+                    lesson['lesson_summary'] = []
+        
+        context = {
+            'course': course
+        }
+        return render(request, 'course/supabase_courses_edit.html', context)
+    except Exception as e:
+        logger.error(f"Error loading course {course_id} for edit: {str(e)}")
+        return JsonResponse({'error': str(e)}, status=500)
+
+@require_http_methods(["POST"])
+def update_course_field(request):
+    """API endpoint to update a course field in Supabase"""
+    try:
+        course_id = request.POST.get('course_id')
+        field = request.POST.get('field')
+        value = request.POST.get('value')
+        
+        if not all([course_id, field, value]):
+            return JsonResponse({'error': 'Missing required fields'}, status=400)
+        
+        supabase = SupabaseService()
+        success = supabase.update_course(
+            int(course_id),
+            {field: value},
+            user=request.user.username if request.user.is_authenticated else 'anonymous'
+        )
+        
+        if success:
+            return JsonResponse({'status': 'success'})
+        else:
+            return JsonResponse({'error': 'Failed to update course'}, status=500)
+            
+    except Exception as e:
+        logger.error(f"Error updating course field: {str(e)}")
+        return JsonResponse({'error': str(e)}, status=500)
+
+@require_http_methods(["POST"])
+def update_lesson_field(request):
+    """API endpoint to update a lesson field in Supabase"""
+    try:
+        lesson_id = request.POST.get('lesson_id')
+        field = request.POST.get('field')
+        value = request.POST.get('value')
+        
+        if not all([lesson_id, field, value]):
+            return JsonResponse({'error': 'Missing required fields'}, status=400)
+        
+        # Parse array fields
+        if field in ['skill_aims', 'lesson_summary']:
+            # Convert newline-separated text to array
+            value = [line.strip() for line in value.split('\n') if line.strip()]
+        elif field == 'language_learning_aims':
+            # This would need more complex parsing - for now keep as is
+            pass
+        
+        supabase = SupabaseService()
+        success = supabase.update_lesson(
+            int(lesson_id),
+            {field: value},
+            user=request.user.username if request.user.is_authenticated else 'anonymous'
+        )
+        
+        if success:
+            return JsonResponse({'status': 'success'})
+        else:
+            return JsonResponse({'error': 'Failed to update lesson'}, status=500)
+            
+    except Exception as e:
+        logger.error(f"Error updating lesson field: {str(e)}")
+        return JsonResponse({'error': str(e)}, status=500)
+
+@require_http_methods(["GET"])
+def get_edit_history(request, course_id):
+    """API endpoint to get edit history for a course"""
+    try:
+        supabase = SupabaseService()
+        history = supabase.get_edit_history(course_id)
+        
+        return JsonResponse({'history': history})
+    except Exception as e:
+        logger.error(f"Error fetching edit history: {str(e)}")
+        return JsonResponse({'error': str(e)}, status=500)

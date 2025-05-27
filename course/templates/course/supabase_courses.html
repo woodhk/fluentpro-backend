@@ -216,7 +216,7 @@
                 <a href="{% url 'supabase_course_edit' course.id %}" class="btn btn-edit">
                     ✏️ Edit Course
                 </a>
-                <button class="btn btn-view" onclick="viewCourse({{ course.id }})">
+                <button class="btn btn-view" data-course-id="{{ course.id }}" onclick="viewCourse(this.dataset.courseId)">
                     👁️ Preview
                 </button>
             </div>
