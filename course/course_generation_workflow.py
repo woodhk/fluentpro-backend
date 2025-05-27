@@ -14,7 +14,7 @@ from langgraph.graph.graph import CompiledGraph
 from pydantic import BaseModel, Field
 from django.conf import settings
 
-# Pydantic models for structured outputs
+# [Previous Pydantic models remain the same]
 class RoleIndustry(BaseModel):
     """Role and industry extraction"""
     role: str = Field(description="The professional role/job title")
@@ -86,6 +86,7 @@ class WorkflowState(TypedDict):
     # Evaluator feedback
     evaluation_results: List[Dict[str, Any]]
     retry_count: int
+    failed_indices: List[int]  # Track which courses failed
     
     # Final outputs
     final_courses: List[Dict[str, Any]]
@@ -93,9 +94,10 @@ class WorkflowState(TypedDict):
     # Status
     current_step: str
     error: str
+    status_callback: Optional[Any]  # For status updates
 
 class CourseGenerationWorkflow:
-    def __init__(self):
+    def __init__(self, status_callback=None):
         # Initialize LLMs with correct model names
         self.orchestrator_llm = ChatAnthropic(
             model="claude-sonnet-4-20250514",
@@ -106,7 +108,7 @@ class CourseGenerationWorkflow:
         
         # Fixed model names for Google Gemini
         self.worker1_llm = ChatGoogleGenerativeAI(
-            model="gemini-2.5-pro-preview-05-06",  # Fixed model name
+            model="gemini-2.5-pro-preview-05-06",
             google_api_key=settings.GOOGLE_GEMINI_API_KEY,
             temperature=0.5,
             max_output_tokens=8192,
@@ -122,7 +124,7 @@ class CourseGenerationWorkflow:
         )
         
         self.worker2_llm = ChatGoogleGenerativeAI(
-            model="gemini-1.5-flash",  # Fixed model name
+            model="gemini-1.5-flash",
             google_api_key=settings.GOOGLE_GEMINI_API_KEY,
             temperature=0.7,
             max_output_tokens=8192,
@@ -130,8 +132,15 @@ class CourseGenerationWorkflow:
             request_timeout=60
         )
         
+        self.status_callback = status_callback
+        
         # Build the workflow
         self.app = self._build_workflow()
+    
+    def update_status(self, step: str, message: str = ""):
+        """Update status if callback is provided"""
+        if self.status_callback:
+            self.status_callback(step, message)
     
     def _build_workflow(self) -> CompiledGraph:
         """Build the LangGraph workflow"""
@@ -169,6 +178,7 @@ class CourseGenerationWorkflow:
     def orchestrator_node(self, state: WorkflowState) -> WorkflowState:
         """Orchestrator that analyzes content and delegates to workers"""
         state["current_step"] = "Orchestrator analyzing content"
+        self.update_status("organizing", f"Organizing document {state['document_id']}")
         print(f"[Orchestrator] Processing document {state['document_id']}")
         
         try:
@@ -211,42 +221,74 @@ class CourseGenerationWorkflow:
                 {"topic": pair.topic, "description": pair.description}
                 for pair in orchestrator_output.topic_pairs
             ]
+            state["failed_indices"] = []  # Initialize failed indices
             
             print(f"[Orchestrator] Found {len(state['topic_pairs'])} topic pairs for {state['role']} in {state['industry']}")
+            self.update_status("organized", f"Successfully organized document - found {len(state['topic_pairs'])} topics")
             
         except Exception as e:
             state["error"] = f"Orchestrator error: {str(e)}"
             print(f"[Orchestrator] Error: {str(e)}")
+            self.update_status("error", f"Failed to organize document: {str(e)}")
         
         return state
     
     def parallel_workers_node(self, state: WorkflowState) -> WorkflowState:
         """Run Worker 1 in parallel for each topic pair"""
         state["current_step"] = "Running parallel workers"
-        print(f"[Parallel Workers] Processing {len(state['topic_pairs'])} topics in parallel")
         
-        worker_outputs = []
+        # Determine which topics to process
+        if state.get("retry_count", 0) > 0 and state.get("failed_indices"):
+            # Only retry failed topics
+            topics_to_process = [
+                (idx, state["topic_pairs"][idx]) 
+                for idx in state["failed_indices"]
+            ]
+            print(f"[Parallel Workers] Retrying {len(topics_to_process)} failed topics")
+            self.update_status("improving_outline", f"Improving {len(topics_to_process)} lesson outlines")
+        else:
+            # First run - process all topics
+            topics_to_process = list(enumerate(state["topic_pairs"]))
+            print(f"[Parallel Workers] Processing {len(topics_to_process)} topics in parallel")
+            self.update_status("generating_outline", "Generating lesson outlines")
+        
+        # Keep existing successful outputs on retry
+        if state.get("retry_count", 0) > 0:
+            # Create a map of existing outputs by index
+            existing_outputs = {output["index"]: output for output in state.get("worker_outputs", [])}
+            worker_outputs = []
+        else:
+            worker_outputs = []
+            existing_outputs = {}
         
         # Process each topic pair in parallel with proper concurrency
-        # Reduced workers to prevent API rate limits
-        max_workers = min(5, len(state["topic_pairs"]))  # Max 5 concurrent workers
+        max_workers = min(5, len(topics_to_process))
         
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             # Submit all tasks
-            future_to_index = {}
-            for idx, pair in enumerate(state["topic_pairs"]):
+            future_to_info = {}
+            for idx, pair in topics_to_process:
+                # Get feedback if this is a retry
+                feedback = None
+                if state.get("retry_count", 0) > 0:
+                    for eval_result in state.get("evaluation_results", []):
+                        if eval_result["index"] == idx and not eval_result["passed"]:
+                            feedback = eval_result["feedback"]
+                            break
+                
                 future = executor.submit(
                     self._process_single_topic_with_retry,
                     pair,
                     state["role"],
                     state["industry"],
-                    idx
+                    idx,
+                    feedback
                 )
-                future_to_index[future] = idx
+                future_to_info[future] = (idx, pair)
             
             # Collect results as they complete
-            for future in as_completed(future_to_index):
-                idx = future_to_index[future]
+            for future in as_completed(future_to_info):
+                idx, pair = future_to_info[future]
                 try:
                     result = future.result()
                     worker_outputs.append(result)
@@ -261,12 +303,25 @@ class CourseGenerationWorkflow:
                         "lessons": []
                     })
         
-        # Sort by index to maintain order
-        worker_outputs.sort(key=lambda x: x["index"])
-        state["worker_outputs"] = worker_outputs
+        # Merge with existing successful outputs
+        if state.get("retry_count", 0) > 0:
+            # Update existing outputs with retry results
+            for output in worker_outputs:
+                existing_outputs[output["index"]] = output
+            
+            # Convert back to list sorted by index
+            final_outputs = list(existing_outputs.values())
+            final_outputs.sort(key=lambda x: x["index"])
+            state["worker_outputs"] = final_outputs
+        else:
+            # Sort by index to maintain order
+            worker_outputs.sort(key=lambda x: x["index"])
+            state["worker_outputs"] = worker_outputs
+        
         return state
     
-    def _process_single_topic_with_retry(self, topic_pair: Dict[str, str], role: str, industry: str, index: int) -> Dict[str, Any]:
+    def _process_single_topic_with_retry(self, topic_pair: Dict[str, str], role: str, 
+                                        industry: str, index: int, feedback: str = None) -> Dict[str, Any]:
         """Process a single topic with retry logic"""
         max_retries = 3
         retry_delay = 2  # seconds
@@ -277,34 +332,53 @@ class CourseGenerationWorkflow:
                 if attempt > 0:
                     time.sleep(retry_delay * attempt)
                 
-                return self._process_single_topic(topic_pair, role, industry, index)
+                return self._process_single_topic(topic_pair, role, industry, index, feedback)
             except Exception as e:
                 if attempt == max_retries - 1:
                     raise
                 print(f"[Worker 1] Retry {attempt + 1} for topic {index} after error: {str(e)}")
                 continue
     
-    def _process_single_topic(self, topic_pair: Dict[str, str], role: str, industry: str, index: int) -> Dict[str, Any]:
+    def _process_single_topic(self, topic_pair: Dict[str, str], role: str, 
+                             industry: str, index: int, feedback: str = None) -> Dict[str, Any]:
         """Process a single topic-description pair"""
-        prompt = f"""
-        Your task is to analyse the topic-description pair and create a course that breaks down the topic-description pair into lessons. Each lesson zooms in on a specific moment within that bigger theme — a particular type of conversation, challenge, or task a {role} in the {industry} industry might face on the job. Lessons break the course down into realistic, manageable practice moments, so you can build your skills one situation at a time.
+        if feedback:
+            prompt = f"""
+            Your previous course generation was not satisfactory. Here's the feedback:
+            {feedback}
 
-        Topic-description pair:
-        Topic: {topic_pair['topic']}
-        Description: {topic_pair['description']}
+            Please regenerate the course addressing these issues.
 
-        Requirements:
-        1. Analayse and leverage the information in the topic-description pair description to create lessons
-        2. Ensure all lessons must be speaking/verbal communication focused
-        3. Make the course name the topic of the topic-description pair.
-        4. Make the course description the description of the topic-description pair.
-        5. Make the lesson names concise and to the point.
+            Topic-description pair:
+            Topic: {topic_pair['topic']}
+            Description: {topic_pair['description']}
 
-        Analogy example (for understanding purposes ONLY):
-        Imagine a course as a training program on "confident client communication." Each lesson is like attending a different training session within that program — one might focus on asking questions, another on explaining technical terms, another on handling misunderstandings. All are connected, but each teaches a different skill you need to succeed in that bigger goal.
+            Requirements:
+            1. Analayse and leverage the information in the topic-description pair description to create lessons
+            2. Ensure all lessons must be speaking/verbal communication focused
+            3. Make the course name the topic of the topic-description pair.
+            4. Make the course description the description of the topic-description pair.
+            5. Make the lesson names concise and to the point.
+            6. Address the specific feedback provided above.
+            """
+        else:
+            prompt = f"""
+            Your task is to analyse the topic-description pair and create a course that breaks down the topic-description pair into lessons. Each lesson zooms in on a specific moment within that bigger theme — a particular type of conversation, challenge, or task a {role} in the {industry} industry might face on the job. Lessons break the course down into realistic, manageable practice moments, so you can build your skills one situation at a time.
 
+            Topic-description pair:
+            Topic: {topic_pair['topic']}
+            Description: {topic_pair['description']}
 
-        """
+            Requirements:
+            1. Analayse and leverage the information in the topic-description pair description to create lessons
+            2. Ensure all lessons must be speaking/verbal communication focused
+            3. Make the course name the topic of the topic-description pair.
+            4. Make the course description the description of the topic-description pair.
+            5. Make the lesson names concise and to the point.
+
+            Analogy example (for understanding purposes ONLY):
+            Imagine a course as a training program on "confident client communication." Each lesson is like attending a different training session within that program — one might focus on asking questions, another on explaining technical terms, another on handling misunderstandings. All are connected, but each teaches a different skill you need to succeed in that bigger goal.
+            """
 
         structured_llm = self.worker1_llm.with_structured_output(CourseWithLessons)
         result = structured_llm.invoke([
@@ -324,9 +398,10 @@ class CourseGenerationWorkflow:
         """Evaluate worker outputs"""
         state["current_step"] = "Evaluating worker outputs"
         print(f"[Evaluator] Evaluating {len(state['worker_outputs'])} course outputs")
+        self.update_status("evaluating_outline", "Evaluating lesson outlines")
         
         evaluation_results = []
-        all_passed = True
+        failed_indices = []
         
         for output in state["worker_outputs"]:
             if "error" in output:
@@ -335,7 +410,7 @@ class CourseGenerationWorkflow:
                     "passed": False,
                     "feedback": output["error"]
                 })
-                all_passed = False
+                failed_indices.append(output.get("index", -1))
                 continue
             
             # Evaluate each output
@@ -369,7 +444,7 @@ class CourseGenerationWorkflow:
                 })
                 
                 if not eval_result.passed:
-                    all_passed = False
+                    failed_indices.append(output["index"])
                     print(f"[Evaluator] Course '{output['course_name']}' failed: {eval_result.feedback}")
                     
             except Exception as e:
@@ -378,32 +453,30 @@ class CourseGenerationWorkflow:
                     "passed": False,
                     "feedback": f"Evaluation error: {str(e)}"
                 })
-                all_passed = False
+                failed_indices.append(output["index"])
         
         state["evaluation_results"] = evaluation_results
+        state["failed_indices"] = failed_indices
         
-        # Increment retry count if not all passed
-        if not all_passed:
+        # Increment retry count if there are failures
+        if failed_indices:
             state["retry_count"] = state.get("retry_count", 0) + 1
+            self.update_status("outline_rejected", f"{len(failed_indices)} lesson outlines need improvement")
+        else:
+            self.update_status("outline_accepted", "All lesson outlines accepted")
         
-        print(f"[Evaluator] {sum(1 for r in evaluation_results if r['passed'])} passed, {sum(1 for r in evaluation_results if not r['passed'])} failed")
+        print(f"[Evaluator] {len(evaluation_results) - len(failed_indices)} passed, {len(failed_indices)} failed")
         
         return state
     
     def should_retry(self, state: WorkflowState) -> Literal["retry", "continue"]:
         """Decide whether to retry or continue"""
-        # Check if all evaluations passed
-        all_passed = all(result["passed"] for result in state["evaluation_results"])
+        # Check if there are failed courses
+        has_failures = len(state.get("failed_indices", [])) > 0
         
         # Maximum 3 retries
-        if not all_passed and state.get("retry_count", 0) < 3:
-            print(f"[Workflow] Retrying failed courses (attempt {state['retry_count'] + 1}/3)")
-            # Provide feedback to workers for retry
-            for i, output in enumerate(state["worker_outputs"]):
-                for eval_result in state["evaluation_results"]:
-                    if eval_result["index"] == output.get("index", i):
-                        if not eval_result["passed"]:
-                            output["feedback"] = eval_result["feedback"]
+        if has_failures and state.get("retry_count", 0) < 3:
+            print(f"[Workflow] Retrying {len(state['failed_indices'])} failed courses (attempt {state['retry_count'] + 1}/3)")
             return "retry"
         
         return "continue"
@@ -411,12 +484,11 @@ class CourseGenerationWorkflow:
     def worker2_node(self, state: WorkflowState) -> WorkflowState:
         """Generate full lesson content in parallel"""
         state["current_step"] = "Generating full lesson content"
+        self.update_status("creating_lessons", "Creating full lessons")
+        
         passed_courses = [
             output for output in state["worker_outputs"]
-            if not any(
-                eval_result["index"] == output.get("index", -1) and not eval_result["passed"]
-                for eval_result in state["evaluation_results"]
-            ) and "error" not in output
+            if output["index"] not in state.get("failed_indices", []) and "error" not in output
         ]
         
         print(f"[Worker 2] Expanding {len(passed_courses)} courses with full lesson details")
@@ -424,7 +496,7 @@ class CourseGenerationWorkflow:
         final_courses = []
         
         # Process courses in parallel
-        max_workers = min(3, len(passed_courses))  # Max 3 concurrent workers for Worker 2
+        max_workers = min(3, len(passed_courses))
         
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             future_to_course = {}
@@ -439,8 +511,13 @@ class CourseGenerationWorkflow:
                 )
                 future_to_course[future] = output
             
+            completed = 0
+            total = len(passed_courses)
+            
             for future in as_completed(future_to_course):
                 output = future_to_course[future]
+                completed += 1
+                
                 try:
                     full_lessons = future.result()
                     final_courses.append({
@@ -449,12 +526,13 @@ class CourseGenerationWorkflow:
                         "topic_pair": output["topic_pair"],
                         "lessons": full_lessons
                     })
-                    print(f"[Worker 2] Completed course: {output['course_name']}")
+                    print(f"[Worker 2] Completed course: {output['course_name']} ({completed}/{total})")
                 except Exception as e:
                     print(f"[Worker 2] Failed to expand course '{output['course_name']}': {str(e)}")
                     state["error"] = f"Worker 2 error: {str(e)}"
         
         state["final_courses"] = final_courses
+        self.update_status("lessons_created", f"Successfully created lessons for {len(final_courses)} courses")
         return state
     
     def _generate_full_lessons_with_retry(self, course_name: str, lessons: List[Dict], role: str, industry: str) -> List[Dict]:
@@ -517,15 +595,20 @@ class CourseGenerationWorkflow:
     def aggregator_node(self, state: WorkflowState) -> WorkflowState:
         """Aggregate all courses and lessons"""
         state["current_step"] = "Aggregating final output"
+        self.update_status("aggregating", "Aggregating courses and lessons")
         print(f"[Aggregator] Final output: {len(state['final_courses'])} courses generated")
+        self.update_status("aggregated", f"Successfully aggregated {len(state['final_courses'])} courses")
         
         return state
     
-    def process_document(self, document_id: int, structured_content: Dict[str, str]) -> Dict[str, Any]:
+    def process_document(self, document_id: int, structured_content: Dict[str, str], status_callback=None) -> Dict[str, Any]:
         """Main entry point to process a document"""
         print(f"\n{'='*60}")
         print(f"Starting course generation for document {document_id}")
         print(f"{'='*60}\n")
+        
+        # Store status callback
+        self.status_callback = status_callback
         
         initial_state = {
             "document_id": document_id,
@@ -538,6 +621,7 @@ class CourseGenerationWorkflow:
             "worker_outputs": [],
             "evaluation_results": [],
             "retry_count": 0,
+            "failed_indices": [],
             "final_courses": [],
             "current_step": "Starting",
             "error": ""
