@@ -235,14 +235,33 @@ def process_document_with_rag_safe(self, document_id):
         result = rag_processor.process_document(doc.content, embeddings)
         
         if result['error']:
+            logger.error(f"RAG processor error for document {document_id}: {result['error']}")
             raise Exception(result['error'])
         
+        # Validate structured output before saving
+        structured_output = result['structured_output']
+        if not structured_output:
+            raise Exception("RAG processor returned empty structured output")
+        
+        # Check for required fields
+        required_fields = ['introduction', 'main_content', 'conclusion']
+        missing_fields = [field for field in required_fields if not structured_output.get(field)]
+        
+        if missing_fields:
+            raise Exception(f"Missing required fields in structured output: {missing_fields}")
+        
+        # Check for minimal content in each field
+        for field, content in structured_output.items():
+            if isinstance(content, str) and len(content.strip()) < 10:
+                logger.warning(f"Very short content in field '{field}' for document {document_id}: {content[:50]}...")
+        
         # Save structured content
-        doc.set_structured_content(result['structured_output'])
+        doc.set_structured_content(structured_output)
         doc.processing_completed = True
         doc.save()
         
         logger.info(f"Successfully processed document {document_id} with RAG")
+        logger.info(f"Structured output fields: {list(structured_output.keys())}")
         return f"Successfully processed document {document_id}"
         
     except RateLimitError:

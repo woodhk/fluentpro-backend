@@ -162,6 +162,113 @@
         gap: 12px;
         margin-bottom: 30px;
     }
+    
+    .courses-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+    }
+    
+    .industry-summary {
+        background: #e8f0fe;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 14px;
+        font-weight: 500;
+    }
+    
+    .summary-text {
+        color: #1a73e8;
+    }
+    
+    .industry-section {
+        margin-bottom: 32px;
+        background: white;
+        border-radius: 12px;
+        border: 1px solid #e8eaed;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    
+    .industry-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        cursor: pointer;
+        padding: 20px 24px;
+        background: #f8f9fa;
+        border-bottom: 1px solid #e8eaed;
+        transition: all 0.3s ease;
+        user-select: none;
+    }
+    
+    .industry-header:hover {
+        background: #f1f3f4;
+    }
+    
+    .industry-title {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    
+    .industry-title h3 {
+        margin: 0;
+        color: #3c4043;
+        font-size: 18px;
+        font-weight: 600;
+    }
+    
+    .industry-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: #ffffff;
+        border: 1px solid #dadce0;
+        transition: all 0.3s ease;
+        color: #5f6368;
+    }
+    
+    .industry-toggle:hover {
+        background: #e8eaed;
+        border-color: #bdc1c6;
+    }
+    
+    .industry-toggle.expanded {
+        transform: rotate(180deg);
+        background: #e8f0fe;
+        border-color: #4285f4;
+        color: #1a73e8;
+    }
+    
+    .course-count {
+        background: #ffffff;
+        color: #5f6368;
+        padding: 4px 12px;
+        border-radius: 16px;
+        font-size: 13px;
+        font-weight: 500;
+        border: 1px solid #dadce0;
+    }
+    
+    .courses-container.industry-courses {
+        display: none;
+        padding: 24px;
+        background: #fafbfc;
+    }
+    
+    .courses-container.industry-courses.expanded {
+        display: grid;
+    }
+    
+    .industry-courses .course-card {
+        background: white;
+        border: 1px solid #e8eaed;
+    }
 </style>
 {% endblock %}
 
@@ -180,49 +287,68 @@
 </div>
 
 {% if courses %}
-    <h2 style="margin-bottom: 24px;">Courses in Supabase ({{ courses|length }})</h2>
+    <div class="courses-header">
+        <h2>Courses in Supabase ({{ courses|length }} total)</h2>
+        <div class="industry-summary">
+            {% regroup courses by industry as industries_list %}
+            <span class="summary-text">{{ industries_list|length }} Industries</span>
+        </div>
+    </div>
     
-    <div class="courses-container">
-        {% for course in courses %}
-        <div class="course-card">
-            <h3 class="course-title">{{ course.course_name }}</h3>
-            
-            <div class="lesson-count">
-                {{ course.lessons|default:"0" }} Lessons
+    {% regroup courses by industry as industries_list %}
+    {% for industry_group in industries_list %}
+    <div class="industry-section">
+        <div class="industry-header" onclick="toggleIndustry('{{ industry_group.grouper|slugify }}')">
+            <div class="industry-title">
+                <h3>{{ industry_group.grouper|default:"Uncategorized" }}</h3>
+                <span class="course-count">{{ industry_group.list|length }} course{{ industry_group.list|length|pluralize }}</span>
             </div>
-            
-            <div class="course-meta">
-                <div class="meta-item">
-                    <strong>Role:</strong>
-                    <span>{{ course.role }}</span>
-                </div>
-                <div class="meta-item">
-                    <strong>Industry:</strong>
-                    <span>{{ course.industry }}</span>
-                </div>
-                <div class="meta-item">
-                    <strong>Document:</strong>
-                    <span title="{{ course.document_title }}">{{ course.document_title|truncatewords:6 }}</span>
-                </div>
-                {% if course.updated_at %}
-                <div class="meta-item">
-                    <strong>Updated:</strong>
-                    <span>{{ course.updated_at|date:"Y-m-d H:i" }}</span>
-                </div>
-                {% endif %}
-            </div>
-            
-            <div class="course-actions">
-                <a href="{% url 'supabase_course_edit' course.id %}" class="btn btn-edit">
-                    ✏️ Edit Course
-                </a>
-                <button class="btn btn-view" data-course-id="{{ course.id }}" onclick="viewCourse(this.dataset.courseId)">
-                    👁️ Preview
-                </button>
+            <div class="industry-toggle" id="toggle-{{ industry_group.grouper|slugify }}">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                    <path d="M8 1a.5.5 0 0 1 .5.5v5.793l2.146-2.147a.5.5 0 0 1 .708.708l-3 3a.5.5 0 0 1-.708 0l-3-3a.5.5 0 1 1 .708-.708L7.5 7.293V1.5A.5.5 0 0 1 8 1z"/>
+                </svg>
             </div>
         </div>
-        {% endfor %}
+        
+        <div class="courses-container industry-courses" id="courses-{{ industry_group.grouper|slugify }}">
+            {% for course in industry_group.list %}
+            <div class="course-card">
+                <h4 class="course-title">{{ course.course_name }}</h4>
+                
+                <div class="lesson-count">
+                    {{ course.lessons|default:"0" }} Lessons
+                </div>
+                
+                <div class="course-meta">
+                    <div class="meta-item">
+                        <strong>Role:</strong>
+                        <span>{{ course.role }}</span>
+                    </div>
+                    <div class="meta-item">
+                        <strong>Document:</strong>
+                        <span title="{{ course.document_title }}">{{ course.document_title|truncatewords:6 }}</span>
+                    </div>
+                    {% if course.updated_at %}
+                    <div class="meta-item">
+                        <strong>Updated:</strong>
+                        <span>{{ course.updated_at|date:"Y-m-d H:i" }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div class="course-actions">
+                    <a href="{% url 'supabase_course_edit' course.id %}" class="btn btn-edit">
+                        ✏️ Edit Course
+                    </a>
+                    <button class="btn btn-view" data-course-id="{{ course.id }}" onclick="viewCourse(this.dataset.courseId)">
+                        👁️ Preview
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
     </div>
+    {% endfor %}
 {% else %}
     <div class="empty-state">
         <svg class="supabase-logo" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -239,5 +365,36 @@ function viewCourse(courseId) {
     // Open preview in new tab (you can implement a preview modal instead)
     window.open(`/supabase/edit/${courseId}/`, '_blank');
 }
+
+function toggleIndustry(industry) {
+    const coursesContainer = document.getElementById(`courses-${industry}`);
+    const toggleIcon = document.getElementById(`toggle-${industry}`);
+    
+    if (coursesContainer && toggleIcon) {
+        const isExpanded = coursesContainer.classList.contains('expanded');
+        
+        if (isExpanded) {
+            // Collapse
+            coursesContainer.classList.remove('expanded');
+            toggleIcon.classList.remove('expanded');
+        } else {
+            // Expand
+            coursesContainer.classList.add('expanded');
+            toggleIcon.classList.add('expanded');
+        }
+    }
+}
+
+// Initialize all industries as collapsed on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Keep first industry expanded by default
+    const firstIndustryContainer = document.querySelector('.courses-container.industry-courses');
+    const firstToggleIcon = document.querySelector('.industry-toggle');
+    
+    if (firstIndustryContainer && firstToggleIcon) {
+        firstIndustryContainer.classList.add('expanded');
+        firstToggleIcon.classList.add('expanded');
+    }
+});
 </script>
 {% endblock %}
