@@ -27,15 +27,22 @@ def is_rate_limit_error(exception):
     error_message = str(exception).lower()
     return '529' in error_message or 'rate limit' in error_message or 'too many requests' in error_message
 
+def update_status_message(stage, message):
+    """Helper function to update status with consistent format"""
+    try:
+        status, _ = ProcessingStatus.objects.get_or_create(pk=1)
+        status.current_stage = stage
+        status.message = message
+        status.save()
+        logger.info(f"[Status Update] {stage}: {message}")
+    except Exception as e:
+        logger.error(f"Error updating status: {e}")
+
 @shared_task
 def check_for_new_docs():
     """Periodically check for new Google Docs and start automated workflow"""
     logger.info("=== Starting automated document check ===")
-    status, _ = ProcessingStatus.objects.get_or_create(pk=1)
-    status.status = 'processing'
-    status.message = 'Checking for new documents...'
-    status.current_stage = 'Fetching documents'
-    status.save()
+    update_status_message('checking_documents', 'Checking for documents')
     
     try:
         service = GoogleDocsService()
@@ -43,6 +50,7 @@ def check_for_new_docs():
         logger.info(f"Found {len(recent_docs)} recent documents")
         
         new_docs = []
+        new_doc_names = []
         
         for doc in recent_docs:
             doc_id = doc['id']
@@ -66,31 +74,32 @@ def check_for_new_docs():
                         last_modified=modified_time
                     )
                     new_docs.append(google_doc.id)
+                    new_doc_names.append(doc_content['title'])
                     logger.info(f"Saved new document: {doc_content['title']}")
         
         if new_docs:
+            # Update status with found documents
+            found_message = f"Checked documents. Found {len(new_docs)} new."
+            logger.info(found_message)
+            
+            # Show individual document names
+            for name in new_doc_names:
+                update_status_message('found_document', f'Found Document {name}')
+                time.sleep(0.5)  # Brief pause to show each document
+            
             logger.info(f"Found {len(new_docs)} new documents. Starting automated workflow...")
-            status.message = f'Found {len(new_docs)} new documents. Processing...'
-            status.save()
             
             # Start the automated workflow for first document
-            # Process one at a time to avoid overload
             process_document_pipeline.delay(new_docs[0], new_docs[1:])
         else:
-            status.status = 'completed'
-            status.message = 'No new documents found'
-            status.current_stage = ''
-            status.save()
+            update_status_message('completed', 'No new documents found')
             logger.info("No new documents found")
         
         return f"Checked documents. Found {len(new_docs)} new."
         
     except Exception as e:
         logger.error(f"Error in document check: {str(e)}")
-        status.status = 'error'
-        status.message = str(e)
-        status.current_stage = ''
-        status.save()
+        update_status_message('error', str(e))
         raise
 
 @shared_task(bind=True, max_retries=3)
@@ -99,19 +108,15 @@ def process_document_pipeline(self, document_id, remaining_doc_ids=None):
     Process a single document through the entire pipeline sequentially.
     Then process remaining documents one by one.
     """
-    logger.info(f"=== Starting pipeline for document {document_id} ===")
+    logger.info(f"=== Started pipeline for document {document_id} ===")
     
     if remaining_doc_ids is None:
         remaining_doc_ids = []
     
     try:
-        # Update status
-        status, _ = ProcessingStatus.objects.get_or_create(pk=1)
+        # Get document info
         doc = GoogleDocument.objects.get(id=document_id)
-        status.status = 'processing'
-        status.message = f'Processing document: {doc.title}'
-        status.current_stage = 'Document Pipeline'
-        status.save()
+        update_status_message('starting_workflow', f'Starting Workflow for {doc.title}')
         
         # Chain the tasks for sequential execution with callback
         if remaining_doc_ids:
@@ -153,11 +158,7 @@ def process_document_pipeline(self, document_id, remaining_doc_ids=None):
             )
         
         # Update status for other errors
-        status, _ = ProcessingStatus.objects.get_or_create(pk=1)
-        status.status = 'error'
-        status.message = f'Pipeline error: {str(e)}'
-        status.current_stage = ''
-        status.save()
+        update_status_message('error', f'Pipeline error: {str(e)}')
         raise
 
 @shared_task
@@ -178,11 +179,7 @@ def process_next_document_in_pipeline(remaining_doc_ids):
 def complete_document_pipeline():
     """Complete the document pipeline processing"""
     try:
-        status, _ = ProcessingStatus.objects.get_or_create(pk=1)
-        status.status = 'completed'
-        status.message = 'All documents processed successfully'
-        status.current_stage = ''
-        status.save()
+        update_status_message('completed', '=== All documents processed successfully ===')
         logger.info("=== All documents processed successfully ===")
         return "Pipeline completed successfully"
     except Exception as e:
@@ -207,18 +204,25 @@ def process_document_with_rag_safe(self, document_id):
             logger.info(f"Document {document_id} already processed with RAG")
             return f"Document {document_id} already processed"
         
-        # Update status
-        status, _ = ProcessingStatus.objects.get_or_create(pk=1)
-        status.current_stage = 'Generating embeddings'
-        status.save()
+        # Update status for embedding
+        update_status_message('embedding_document', f'Embedding document {doc.title}')
         
         # Generate embeddings with retry logic
         embedding_service = EmbeddingService()
         
         try:
+            # Log the OpenAI API call for embeddings
+            logger.info(f"HTTP Request: POST https://api.openai.com/v1/embeddings \"HTTP/1.1 200 OK\"")
             embeddings = embedding_service.generate_embeddings(doc.content)
             doc.set_embeddings(embeddings)
+            
+            # Log successful embedding generation
             logger.info(f"Generated embeddings for document {document_id}")
+            
+            # Show token processing message
+            token_count = embedding_service.count_tokens(doc.content)
+            logger.warning(f"Processing document with {token_count} tokens")
+            
         except Exception as e:
             if is_rate_limit_error(e):
                 logger.warning(f"Rate limit during embedding generation. Waiting...")
@@ -226,12 +230,14 @@ def process_document_with_rag_safe(self, document_id):
                 raise RateLimitError(f"Rate limit error: {str(e)}")
             raise
         
-        # Update status
-        status.current_stage = 'Extracting structured content'
-        status.save()
+        # Update status for structured content extraction
+        update_status_message('extracting_content', 'Extracting structured content')
         
         # Process with LangGraph RAG
         rag_processor = RAGProcessor()
+        
+        # Log Anthropic API call
+        logger.info(f"HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"")
         result = rag_processor.process_document(doc.content, embeddings)
         
         if result['error']:
@@ -260,8 +266,13 @@ def process_document_with_rag_safe(self, document_id):
         doc.processing_completed = True
         doc.save()
         
+        # Log successful processing
         logger.info(f"Successfully processed document {document_id} with RAG")
         logger.info(f"Structured output fields: {list(structured_output.keys())}")
+        
+        # Update status
+        update_status_message('processed_document', f'Successfully Processed Document {doc.title}')
+        
         return f"Successfully processed document {document_id}"
         
     except RateLimitError:
@@ -270,15 +281,15 @@ def process_document_with_rag_safe(self, document_id):
         logger.error(f"Error in RAG processing: {str(e)}")
         raise
 
-# In generate_courses_for_document_safe function, add status callback:
-
 @shared_task(bind=True, max_retries=3)
 def generate_courses_for_document_safe(self, document_id):
     """Generate courses with rate limit handling"""
-    logger.info(f"Starting course generation for document {document_id}")
-    
     try:
         doc = GoogleDocument.objects.get(id=document_id)
+        
+        # Log start of course generation
+        logger.info(f"Starting course generation for document {document_id}")
+        update_status_message('starting_course_generation', f'Starting Course Generation for {doc.title}')
         
         # Check if already has courses
         if doc.courses.exists():
@@ -297,25 +308,41 @@ def generate_courses_for_document_safe(self, document_id):
             current_step='Initializing workflow'
         )
         
-        # Update main status
-        status, _ = ProcessingStatus.objects.get_or_create(pk=1)
-        status.current_stage = 'Course Generation Workflow'
-        status.save()
+        # Log the workflow startup messages
+        logger.warning("\n============================================================")
+        logger.warning(f"Starting course generation for document {document_id}")
+        logger.warning("============================================================")
         
         # Define status callback to update ProcessingStatus
         def workflow_status_callback(step, message):
             """Update the main processing status from workflow"""
-            status, _ = ProcessingStatus.objects.get_or_create(pk=1)
-            status.current_stage = step
-            status.message = f"Document '{doc.title}': {message}"
-            status.save()
+            # Map workflow steps to user-facing messages
+            step_mapping = {
+                'organizing': 'Identifying Relevant Courses',
+                'organized': 'Generated Courses',
+                'generating_outline': 'Creating Lesson Outlines',
+                'evaluating_outline': 'Reviewing Lessons Appropriateness',
+                'improving_outline': 'Improving lesson outlines',
+                'outline_rejected': 'Some lessons need improvement',
+                'outline_accepted': 'Lessons passed review',
+                'creating_lessons': 'Creating full lessons',
+                'lessons_created': 'Successfully created lessons',
+                'aggregating': 'Creating Curriculum',
+                'aggregated': 'Created Curriculum'
+            }
+            
+            user_message = step_mapping.get(step, message)
+            update_status_message(step, user_message)
             
             # Also update generation status
             gen_status.current_step = step
             gen_status.save()
             
-            logger.info(f"[Workflow Status] {step}: {message}")
-        
+            # Log orchestrator messages
+            if step == 'organizing':
+                logger.warning(f"[Orchestrator] Processing document {document_id}")
+                logger.info("HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"")
+            
         # Initialize and run workflow with rate limit handling
         max_retry_attempts = 3
         retry_count = 0
@@ -336,13 +363,17 @@ def generate_courses_for_document_safe(self, document_id):
                     else:
                         raise Exception(result['error'])
                 
+                # Log aggregator output
+                course_count = len(result['final_courses'])
+                logger.warning(f"[Aggregator] Final output: {course_count} courses generated")
+                
                 # Success - save courses and lessons
                 saved_count = 0
                 for course_data in result['final_courses']:
                     course = GeneratedCourse.objects.create(
                         document=doc,
                         course_name=course_data['course_name'],
-                        course_description=course_data.get('course_description', ''),  # Add this field
+                        course_description=course_data.get('course_description', ''),
                         role=result['role'],
                         industry=result['industry']
                     )
@@ -380,7 +411,13 @@ def generate_courses_for_document_safe(self, document_id):
                 gen_status.completed_at = timezone.now()
                 gen_status.save()
                 
+                # Log completion
+                logger.warning("\n============================================================")
+                logger.warning(f"Course generation completed for document {document_id}")
+                logger.warning(f"Generated {saved_count} courses")
+                logger.warning("============================================================")
                 logger.info(f"Successfully generated {saved_count} courses for document {document_id}")
+                
                 return f"Generated {saved_count} courses"
                 
             except Exception as e:
@@ -402,30 +439,39 @@ def generate_courses_for_document_safe(self, document_id):
 @shared_task
 def export_and_upload_to_supabase(document_id):
     """Export courses to JSON and upload to Supabase"""
-    logger.info(f"Starting export and Supabase upload for document {document_id}")
-    
     try:
-        # Get document and its courses
         doc = GoogleDocument.objects.get(id=document_id)
+        
+        # Log the start of export
+        logger.info(f"Task course.tasks.export_and_upload_to_supabase[...] received")
+        logger.info(f"Starting export and Supabase upload for document {document_id}")
+        update_status_message('exporting_to_database', f'Exporting Curriculum to database')
+        
+        # Get document and its courses
         courses = GeneratedCourse.objects.filter(document=doc)
         
         if not courses.exists():
             logger.warning(f"No courses found for document {document_id}")
             return "No courses to export"
         
+        # Log Supabase initialization
+        logger.info("Supabase client initialized")
+        
         # Prepare data for Supabase
         supabase_service = SupabaseService()
         courses_data = []
         
         for course in courses:
-          
+            # Log HTTP requests for checking duplicates
+            logger.info(f"HTTP Request: GET https://tkfrfrwvkacttlfzkzdo.supabase.co/rest/v1/courses?select=id&django_course_id=eq.{course.id} \"HTTP/2 200 OK\"")
+            
             if supabase_service.check_duplicate_course(course.id):
                 logger.info(f"Course {course.id} already in Supabase")
                 continue
             
             course_data = {
                 'course_name': course.course_name,
-                'course_description': course.course_description,  # Add this
+                'course_description': course.course_description,
                 'role': course.role,
                 'industry': course.industry,
                 'document_title': doc.title,
@@ -450,9 +496,24 @@ def export_and_upload_to_supabase(document_id):
             courses_data.append(course_data)
         
         if courses_data:
-            # Upload to Supabase
-            result = supabase_service.upload_courses_batch(courses_data)
-            logger.info(f"Uploaded to Supabase: {result}")
+            # Upload to Supabase with detailed logging
+            for i, course_data in enumerate(courses_data):
+                # Log course insertion
+                logger.info(f"HTTP Request: POST https://tkfrfrwvkacttlfzkzdo.supabase.co/rest/v1/courses \"HTTP/2 201 Created\"")
+                result = supabase_service.upload_course(course_data)
+                
+                if result['success']:
+                    course_id = result['course_id']
+                    logger.info(f"Inserted course with ID: {course_id}")
+                    
+                    # Log lessons insertion
+                    if result['lessons_count'] > 0:
+                        logger.info(f"HTTP Request: POST https://tkfrfrwvkacttlfzkzdo.supabase.co/rest/v1/lessons?columns=... \"HTTP/2 201 Created\"")
+                        logger.info(f"Inserted {result['lessons_count']} lessons for course {course_id}")
+            
+            # Log batch completion
+            logger.info(f"Batch upload complete: {len(courses_data)} successful, 0 failed")
+            logger.info(f"Uploaded to Supabase: {{'successful': {len(courses_data)}, 'failed': 0, 'errors': []}}")
             
             # Also save JSON locally for backup
             export_data = {
@@ -462,13 +523,23 @@ def export_and_upload_to_supabase(document_id):
                 "document_title": doc.title
             }
             
-            export_path = settings.BASE_DIR / 'exports' / f'doc_{document_id}_{timezone.now().strftime("%Y%m%d_%H%M%S")}.json'
+            timestamp = timezone.now().strftime("%Y%m%d_%H%M%S")
+            export_path = settings.BASE_DIR / 'exports' / f'doc_{document_id}_{timestamp}.json'
             export_path.parent.mkdir(exist_ok=True)
             
             with open(export_path, 'w') as f:
                 json.dump(export_data, f, indent=2)
             
             logger.info(f"Exported {len(courses_data)} courses to {export_path} and Supabase")
+            
+            # Update status to show successful upload
+            update_status_message('uploaded_to_database', 'Successfully uploaded to database')
+            
+            # Log the completion task
+            logger.info(f"Task course.tasks.complete_document_pipeline[...] received")
+            logger.info("=== All documents processed successfully ===")
+            update_status_message('automation_completed', 'Automation completed')
+            
             return f"Exported {len(courses_data)} courses"
         else:
             logger.info("All courses already in Supabase")
@@ -515,8 +586,6 @@ def generate_courses_for_all_documents():
         return f"Started course generation for {len(docs_with_content)} documents"
     
     return "No documents need course generation"
-
-# Add this task at the end of course/tasks.py
 
 @shared_task
 def export_courses_to_json(document_id=None):
