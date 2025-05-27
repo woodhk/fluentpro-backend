@@ -3,231 +3,402 @@
 
 {% block content %}
 {% csrf_token %}
-<div class="status-bar">
-    <div class="status-info">
-        <span class="status-indicator status-{{ status.status }}"></span>
-        <strong>Status:</strong> <span id="status-text">{{ status.get_status_display }}</span>
-        {% if status.message %}
-            - <span id="status-message">{{ status.message }}</span>
-        {% endif %}
-        {% if status.current_stage %}
-            <br><strong>Stage:</strong> <span id="current-stage">{{ status.current_stage }}</span>
-        {% endif %}
-        {% if status.last_check %}
-            <br><small>Last check: <span id="last-check">{{ status.last_check|date:"Y-m-d H:i:s" }}</span></small>
-        {% endif %}
-    </div>
-    <div class="button-group">
-        <button id="checkDocsBtn" class="btn" onclick="checkForNewDocs()">
-            Check for New Docs
-        </button>
-        <button id="processRagBtn" class="btn btn-secondary" onclick="processWithRAG()">
-            Process All with RAG
-        </button>
-        <button id="generateCoursesBtn" class="btn btn-tertiary" onclick="generateCourses()">
-          Generate Courses
-       </button>
-        <button id="clearDocsBtn" class="btn btn-danger" onclick="clearAllDocs()">
-            Clear All Docs
-        </button>
-        <div class="loading-spinner" id="loadingSpinner"></div>
-    </div>
-</div>
 
-<div class="workflow-section">
-    <h2>Step 1: Google Docs Extraction</h2>
-    <p>Documents are fetched from Google Docs and stored locally.</p>
-</div>
-
-<div class="workflow-section">
-    <h2>Step 2: LLM Processing & Verbatim Display</h2>
-    <p>Documents are embedded using OpenAI and processed through LangGraph with Claude Sonnet to extract structured content.</p>
-</div>
-<div class="workflow-section">
-  <h2>Step 3: Course & Lesson Generation</h2>
-  <p>Documents are processed through a complex LangGraph workflow with multiple LLMs to generate structured courses and lessons.</p>
-  <div class="workflow-details">
-      <ul>
-          <li><strong>Orchestrator:</strong> Claude analyzes content and identifies topic-description pairs</li>
-          <li><strong>Parallel Workers:</strong> Gemini Pro generates lessons for each topic</li>
-          <li><strong>Evaluator:</strong> Claude validates lesson quality and structure</li>
-          <li><strong>Worker 2:</strong> Gemini Flash expands lessons with full details</li>
-          <li><strong>Aggregator:</strong> Combines all courses for export</li>
-      </ul>
-  </div>
-</div>
-<div id="documentsContainer">
-    {% if documents %}
-        <div class="documents-grid">
-            {% for doc in documents %}
-            <div class="document-card {% if doc.processing_completed %}processed{% endif %}">
-                <div class="card-header">
-                    <h3 class="document-title">{{ doc.title }}</h3>
-                    {% if doc.processing_completed %}
-                        <span class="badge badge-success">RAG Processed</span>
-                    {% else %}
-                        <span class="badge badge-warning">Pending RAG</span>
-                    {% endif %}
-                </div>
-                <div class="document-meta">
-                    Extracted: {{ doc.processed_at|date:"Y-m-d H:i:s" }}
-                </div>
-                <div class="document-content">{{ doc.content|truncatewords:50 }}</div>
-                <div class="card-actions">
-                    <a href="{% url 'document_detail' doc.id %}" class="btn btn-small">View Details</a>
-                </div>
-            </div>
-            {% endfor %}
+<div class="automation-container">
+    <h1>FluentPro Course Generator</h1>
+    
+    <!-- Main Automation Section -->
+    <div class="automation-card">
+        <h2>Automated Course Generation</h2>
+        <p>Process Google Docs → Extract Content → Generate Courses → Save to Database</p>
+        
+        <div id="automationControl">
+            <button id="startAutomationBtn" class="btn btn-primary btn-large" onclick="startAutomation()">
+                Start Automation
+            </button>
         </div>
         
-        {% if documents.has_other_pages %}
-        <div class="pagination">
-            <span class="step-links">
+        <!-- Progress Section (Initially Hidden) -->
+        <div id="progressSection" style="display: none;">
+            <div class="progress-container">
+                <div class="progress-bar">
+                    <div id="progressFill" class="progress-fill"></div>
+                </div>
+                <p id="progressText" class="progress-text">Initializing...</p>
+            </div>
+            
+            <div class="stage-list">
+                <div class="stage-item" id="stage-check">
+                    <span class="stage-icon">○</span>
+                    <span>Check for new documents</span>
+                </div>
+                <div class="stage-item" id="stage-rag">
+                    <span class="stage-icon">○</span>
+                    <span>Process with RAG</span>
+                </div>
+                <div class="stage-item" id="stage-generate">
+                    <span class="stage-icon">○</span>
+                    <span>Generate courses</span>
+                </div>
+                <div class="stage-item" id="stage-upload">
+                    <span class="stage-icon">○</span>
+                    <span>Upload to database</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Error Section (Initially Hidden) -->
+        <div id="errorSection" class="error-section" style="display: none;">
+            <h3>❌ Error Occurred</h3>
+            <p><strong>Stage:</strong> <span id="errorStage"></span></p>
+            <p><strong>Details:</strong> <span id="errorDetails"></span></p>
+            <button class="btn" onclick="resetAutomation()">Try Again</button>
+        </div>
+        
+        <!-- Success Section (Initially Hidden) -->
+        <div id="successSection" class="success-section" style="display: none;">
+            <h3>✅ Automation Complete</h3>
+            <p id="successMessage"></p>
+            <div class="button-group">
+                <a href="{% url 'courses_list' %}" class="btn btn-primary">View Local Courses</a>
+                <a href="{% url 'supabase_courses' %}" class="btn btn-primary">View & Edit Courses</a>
+                <button class="btn" onclick="resetAutomation()">Run Again</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Manual Controls (Optional) -->
+    <details class="manual-controls">
+        <summary>Manual Controls</summary>
+        <div class="manual-buttons">
+            <button class="btn btn-small" onclick="checkForNewDocs()">Check Docs</button>
+            <button class="btn btn-small" onclick="processWithRAG()">Process RAG</button>
+            <button class="btn btn-small" onclick="generateCourses()">Generate Courses</button>
+            <button class="btn btn-small btn-danger" onclick="clearAllDocs()">Clear All</button>
+        </div>
+    </details>
+    
+    <!-- Documents Section -->
+    <div class="documents-section">
+        <h2>Processed Documents</h2>
+        {% if documents %}
+            <div class="documents-list">
+                {% for doc in documents %}
+                <div class="document-item">
+                    <div class="document-info">
+                        <h3>{{ doc.title }}</h3>
+                        <p>{{ doc.content|truncatewords:30 }}</p>
+                        <small>Processed: {{ doc.processed_at|date:"Y-m-d H:i" }}</small>
+                    </div>
+                    <div class="document-status">
+                        {% if doc.processing_completed %}
+                            <span class="status-badge status-complete">✓ Complete</span>
+                        {% else %}
+                            <span class="status-badge status-pending">Pending</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            {% if documents.has_other_pages %}
+            <div class="pagination">
                 {% if documents.has_previous %}
-                    <a href="?page=1">&laquo; first</a>
-                    <a href="?page={{ documents.previous_page_number }}">previous</a>
+                    <a href="?page={{ documents.previous_page_number }}">← Previous</a>
                 {% endif %}
-                
-                <span class="current">
-                    Page {{ documents.number }} of {{ documents.paginator.num_pages }}
-                </span>
-                
+                <span>Page {{ documents.number }} of {{ documents.paginator.num_pages }}</span>
                 {% if documents.has_next %}
-                    <a href="?page={{ documents.next_page_number }}">next</a>
-                    <a href="?page={{ documents.paginator.num_pages }}">last &raquo;</a>
+                    <a href="?page={{ documents.next_page_number }}">Next →</a>
                 {% endif %}
-            </span>
-        </div>
+            </div>
+            {% endif %}
+        {% else %}
+            <p class="empty-message">No documents processed yet. Start the automation to begin.</p>
         {% endif %}
-    {% else %}
-        <div class="empty-state">
-            <h2>No documents found yet</h2>
-            <p>Click "Check for New Docs" to start importing your Google Docs.</p>
-        </div>
-    {% endif %}
+    </div>
 </div>
 
 <style>
-    .workflow-section {
-        background-color: #f8f9fa;
+    .automation-container {
+        max-width: 800px;
+        margin: 0 auto;
         padding: 20px;
-        margin: 20px 0;
-        border-radius: 8px;
-        border-left: 4px solid #4285f4;
     }
     
-    .workflow-section h2 {
+    h1 {
+        text-align: center;
+        color: #333;
+        margin-bottom: 30px;
+    }
+    
+    .automation-card {
+        background: white;
+        border-radius: 8px;
+        padding: 30px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 30px;
+    }
+    
+    .automation-card h2 {
         margin-top: 0;
+        color: #333;
+    }
+    
+    .automation-card p {
+        color: #666;
+        margin-bottom: 20px;
+    }
+    
+    .btn-large {
+        padding: 15px 40px;
+        font-size: 18px;
+    }
+    
+    .progress-container {
+        margin: 20px 0;
+    }
+    
+    .progress-bar {
+        width: 100%;
+        height: 20px;
+        background: #f0f0f0;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    
+    .progress-fill {
+        height: 100%;
+        background: #4285f4;
+        width: 0%;
+        transition: width 0.5s ease;
+    }
+    
+    .progress-text {
+        text-align: center;
+        margin-top: 10px;
+        color: #666;
+    }
+    
+    .stage-list {
+        margin-top: 20px;
+    }
+    
+    .stage-item {
+        padding: 10px;
+        margin: 5px 0;
+        background: #f8f9fa;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .stage-item.active {
+        background: #e8f0fe;
         color: #1a73e8;
+    }
+    
+    .stage-item.complete {
+        background: #e6f4ea;
+        color: #188038;
+    }
+    
+    .stage-item.error {
+        background: #fce8e6;
+        color: #d33b2c;
+    }
+    
+    .stage-icon {
+        font-size: 20px;
+    }
+    
+    .stage-item.active .stage-icon::after {
+        content: '◉';
+    }
+    
+    .stage-item.complete .stage-icon::after {
+        content: '✓';
+    }
+    
+    .stage-item.error .stage-icon::after {
+        content: '✗';
+    }
+    
+    .error-section {
+        background: #fce8e6;
+        border: 1px solid #d33b2c;
+        border-radius: 6px;
+        padding: 20px;
+        margin-top: 20px;
+    }
+    
+    .error-section h3 {
+        color: #d33b2c;
+        margin-top: 0;
+    }
+    
+    .success-section {
+        background: #e6f4ea;
+        border: 1px solid #34a853;
+        border-radius: 6px;
+        padding: 20px;
+        margin-top: 20px;
+    }
+    
+    .success-section h3 {
+        color: #188038;
+        margin-top: 0;
     }
     
     .button-group {
         display: flex;
         gap: 10px;
-        align-items: center;
-    }
-    
-    .btn-secondary {
-        background-color: #34a853;
-    }
-    
-    .btn-secondary:hover {
-        background-color: #2d8e47;
-    }
-    
-    .badge {
-        padding: 4px 8px;
-        border-radius: 4px;
-        font-size: 0.8rem;
-        font-weight: 600;
-    }
-    
-    .badge-success {
-        background-color: #4caf50;
-        color: white;
-    }
-    
-    .badge-warning {
-        background-color: #ff9800;
-        color: white;
-    }
-    
-    .card-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 10px;
-    }
-    
-    .card-actions {
         margin-top: 15px;
+        flex-wrap: wrap;
+    }
+    
+    .manual-controls {
+        margin-top: 20px;
+        padding: 15px;
+        background: #f8f9fa;
+        border-radius: 6px;
+    }
+    
+    .manual-controls summary {
+        cursor: pointer;
+        font-weight: 500;
+        color: #666;
+    }
+    
+    .manual-buttons {
+        margin-top: 15px;
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
     }
     
     .btn-small {
-        padding: 6px 12px;
-        font-size: 0.9rem;
+        padding: 8px 16px;
+        font-size: 14px;
     }
     
-    .document-card.processed {
-        border-left: 4px solid #4caf50;
+    .documents-section {
+        margin-top: 40px;
     }
     
-    .btn-tertiary {
-        background-color: #ea4335;
+    .documents-section h2 {
+        color: #333;
+        margin-bottom: 20px;
     }
-
-    .btn-tertiary:hover {
-        background-color: #d33b2c;
+    
+    .documents-list {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
     }
-
-    .btn-danger {
-        background-color: #dc3545;
+    
+    .document-item {
+        background: white;
+        border: 1px solid #e0e0e0;
+        border-radius: 6px;
+        padding: 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
     }
-
-    .btn-danger:hover {
-        background-color: #c82333;
+    
+    .document-info h3 {
+        margin: 0 0 10px 0;
+        color: #333;
+        font-size: 18px;
     }
-
-    .workflow-details {
-        margin-top: 15px;
-        padding-left: 20px;
+    
+    .document-info p {
+        margin: 0 0 5px 0;
+        color: #666;
     }
-
-    .workflow-details ul {
-        list-style-type: none;
-        padding: 0;
+    
+    .document-info small {
+        color: #999;
     }
-
-    .workflow-details li {
-        margin-bottom: 8px;
-        padding-left: 20px;
-        position: relative;
+    
+    .status-badge {
+        padding: 5px 12px;
+        border-radius: 16px;
+        font-size: 14px;
+        font-weight: 500;
     }
-
-    .workflow-details li:before {
-        content: "→";
-        position: absolute;
-        left: 0;
+    
+    .status-complete {
+        background: #e6f4ea;
+        color: #188038;
+    }
+    
+    .status-pending {
+        background: #fef7e0;
+        color: #ea8600;
+    }
+    
+    .empty-message {
+        text-align: center;
+        color: #666;
+        padding: 40px;
+        background: #f8f9fa;
+        border-radius: 6px;
+    }
+    
+    .pagination {
+        text-align: center;
+        margin-top: 20px;
+        color: #666;
+    }
+    
+    .pagination a {
         color: #4285f4;
-        font-weight: bold;
+        text-decoration: none;
+        padding: 5px 10px;
+    }
+    
+    .pagination a:hover {
+        text-decoration: underline;
+    }
+    
+    .btn-danger {
+        background: #dc3545;
+        color: white;
+    }
+    
+    .btn-danger:hover {
+        background: #c82333;
     }
 </style>
 
 <script>
+    let automationInProgress = false;
     let statusCheckInterval;
     
     function getCSRFToken() {
         return document.querySelector('[name=csrfmiddlewaretoken]').value;
     }
     
-    async function checkForNewDocs() {
-        const btn = document.getElementById('checkDocsBtn');
-        const spinner = document.getElementById('loadingSpinner');
+    async function startAutomation() {
+        if (automationInProgress) return;
         
-        btn.disabled = true;
-        spinner.style.display = 'inline-block';
+        automationInProgress = true;
+        document.getElementById('startAutomationBtn').style.display = 'none';
+        document.getElementById('progressSection').style.display = 'block';
+        document.getElementById('errorSection').style.display = 'none';
+        document.getElementById('successSection').style.display = 'none';
+        
+        // Reset all stages
+        document.querySelectorAll('.stage-item').forEach(item => {
+            item.classList.remove('active', 'complete', 'error');
+        });
+        
+        updateProgress(0, 'Starting automation...');
         
         try {
+            // Start the check for new docs
             const response = await fetch('/api/check-new-docs/', {
                 method: 'POST',
                 headers: {
@@ -239,51 +410,15 @@
             if (response.ok) {
                 startStatusPolling();
             } else {
-                alert('Error starting document check');
-                btn.disabled = false;
-                spinner.style.display = 'none';
+                showError('Initialization', 'Failed to start automation');
             }
         } catch (error) {
-            console.error('Error:', error);
-            alert('Error starting document check');
-            btn.disabled = false;
-            spinner.style.display = 'none';
-        }
-    }
-    
-    async function processWithRAG() {
-        const btn = document.getElementById('processRagBtn');
-        const spinner = document.getElementById('loadingSpinner');
-        
-        btn.disabled = true;
-        spinner.style.display = 'inline-block';
-        
-        try {
-            const response = await fetch('/api/process-rag/', {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': getCSRFToken(),
-                    'Content-Type': 'application/json'
-                }
-            });
-            
-            if (response.ok) {
-                startStatusPolling();
-            } else {
-                alert('Error starting RAG processing');
-                btn.disabled = false;
-                spinner.style.display = 'none';
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            alert('Error starting RAG processing');
-            btn.disabled = false;
-            spinner.style.display = 'none';
+            showError('Initialization', error.message);
         }
     }
     
     function startStatusPolling() {
-        statusCheckInterval = setInterval(checkStatus, 2000); // Check every 2 seconds
+        statusCheckInterval = setInterval(checkStatus, 2000);
     }
     
     async function checkStatus() {
@@ -291,126 +426,173 @@
             const response = await fetch('/api/status/');
             const data = await response.json();
             
-            updateStatusDisplay(data);
+            updateAutomationDisplay(data);
             
-            if (data.status === 'completed' || data.status === 'error') {
+            if (data.status === 'completed') {
                 clearInterval(statusCheckInterval);
-                document.getElementById('checkDocsBtn').disabled = false;
-                document.getElementById('processRagBtn').disabled = false;
-                document.getElementById('loadingSpinner').style.display = 'none';
-                
-                if (data.status === 'completed') {
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 1000);
-                }
+                showSuccess(data.message || 'All documents processed successfully');
+                automationInProgress = false;
+            } else if (data.status === 'error') {
+                clearInterval(statusCheckInterval);
+                showError(data.current_stage || 'Unknown', data.message || 'An error occurred');
+                automationInProgress = false;
             }
         } catch (error) {
             console.error('Error checking status:', error);
         }
     }
     
-    function updateStatusDisplay(data) {
-        const statusIndicator = document.querySelector('.status-indicator');
-        const statusText = document.getElementById('status-text');
-        const statusMessage = document.getElementById('status-message');
-        const currentStage = document.getElementById('current-stage');
-        const lastCheck = document.getElementById('last-check');
-        
-        // Update indicator class
-        statusIndicator.className = 'status-indicator status-' + data.status;
-        
-        // Update status text
-        const statusDisplayMap = {
-            'idle': 'Idle',
-            'processing': 'Processing',
-            'completed': 'Completed',
-            'error': 'Error'
+    function updateAutomationDisplay(data) {
+        const stages = {
+            'Fetching documents': { id: 'stage-check', progress: 25 },
+            'Generating embeddings': { id: 'stage-rag', progress: 50 },
+            'Extracting structured content': { id: 'stage-rag', progress: 50 },
+            'Course Generation Workflow': { id: 'stage-generate', progress: 75 },
+            'Document Pipeline': { id: 'stage-upload', progress: 90 }
         };
-        statusText.textContent = statusDisplayMap[data.status] || data.status;
         
-        // Update message
-        if (statusMessage) {
-            statusMessage.textContent = data.message || '';
-        }
-        
-        // Update current stage
-        if (currentStage && data.current_stage) {
-            currentStage.textContent = data.current_stage;
-        }
-        
-        // Update last check time
-        if (lastCheck && data.last_check) {
-            const date = new Date(data.last_check);
-            lastCheck.textContent = date.toLocaleString();
+        // Update progress based on current stage
+        const stageInfo = stages[data.current_stage];
+        if (stageInfo) {
+            updateProgress(stageInfo.progress, data.message || data.current_stage);
+            
+            // Update stage indicators
+            Object.keys(stages).forEach(stage => {
+                const stageEl = document.getElementById(stages[stage].id);
+                if (stageEl) {
+                    if (stages[stage].progress < stageInfo.progress) {
+                        stageEl.classList.add('complete');
+                        stageEl.classList.remove('active');
+                    } else if (stages[stage].progress === stageInfo.progress) {
+                        stageEl.classList.add('active');
+                        stageEl.classList.remove('complete');
+                    }
+                }
+            });
         }
     }
+    
+    function updateProgress(percentage, text) {
+        document.getElementById('progressFill').style.width = percentage + '%';
+        document.getElementById('progressText').textContent = text;
+    }
+    
+    function showError(stage, details) {
+        document.getElementById('progressSection').style.display = 'none';
+        document.getElementById('errorSection').style.display = 'block';
+        document.getElementById('errorStage').textContent = stage;
+        document.getElementById('errorDetails').textContent = details;
+        
+        // Mark the failed stage
+        const stageMap = {
+            'Fetching documents': 'stage-check',
+            'Generating embeddings': 'stage-rag',
+            'Extracting structured content': 'stage-rag',
+            'Course Generation Workflow': 'stage-generate',
+            'Document Pipeline': 'stage-upload'
+        };
+        
+        const stageEl = document.getElementById(stageMap[stage]);
+        if (stageEl) {
+            stageEl.classList.add('error');
+        }
+    }
+    
+    function showSuccess(message) {
+        document.getElementById('progressSection').style.display = 'none';
+        document.getElementById('successSection').style.display = 'block';
+        document.getElementById('successMessage').textContent = message;
+        
+        // Mark all stages as complete
+        document.querySelectorAll('.stage-item').forEach(item => {
+            item.classList.add('complete');
+            item.classList.remove('active');
+        });
+        
+        // Refresh the page after 3 seconds to show new documents
+        setTimeout(() => {
+            window.location.reload();
+        }, 3000);
+    }
+    
+    function resetAutomation() {
+        automationInProgress = false;
+        document.getElementById('startAutomationBtn').style.display = 'block';
+        document.getElementById('progressSection').style.display = 'none';
+        document.getElementById('errorSection').style.display = 'none';
+        document.getElementById('successSection').style.display = 'none';
+    }
+    
+    // Manual control functions
+    async function checkForNewDocs() {
+        const response = await fetch('/api/check-new-docs/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCSRFToken(),
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (response.ok) {
+            alert('Started checking for new documents');
+            startStatusPolling();
+        } else {
+            alert('Error starting document check');
+        }
+    }
+    
+    async function processWithRAG() {
+        const response = await fetch('/api/process-rag/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCSRFToken(),
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (response.ok) {
+            alert('Started RAG processing');
+            startStatusPolling();
+        } else {
+            alert('Error starting RAG processing');
+        }
+    }
+    
     async function generateCourses() {
-    const btn = document.getElementById('generateCoursesBtn');
-    const spinner = document.getElementById('loadingSpinner');
-    
-    btn.disabled = true;
-    spinner.style.display = 'inline-block';
-    
-    try {
         const response = await fetch('/api/generate-courses/', {
             method: 'POST',
             headers: {
                 'X-CSRFToken': getCSRFToken(),
                 'Content-Type': 'application/x-www-form-urlencoded'
             },
-            body: 'document_id='  // Generate for all documents
+            body: 'document_id='
         });
         
         if (response.ok) {
+            alert('Started course generation');
             startStatusPolling();
-            alert('Course generation started! This may take several minutes.');
         } else {
             alert('Error starting course generation');
-            btn.disabled = false;
-            spinner.style.display = 'none';
         }
-    } catch (error) {
-        console.error('Error:', error);
-        alert('Error starting course generation');
-        btn.disabled = false;
-        spinner.style.display = 'none';
     }
-}
+    
     async function clearAllDocs() {
-        if (!confirm('Are you sure you want to delete ALL documents from memory? This action cannot be undone.')) {
+        if (!confirm('Are you sure you want to delete ALL documents? This cannot be undone.')) {
             return;
         }
         
-        const btn = document.getElementById('clearDocsBtn');
-        const spinner = document.getElementById('loadingSpinner');
-        
-        btn.disabled = true;
-        spinner.style.display = 'inline-block';
-        
-        try {
-            const response = await fetch('/api/clear-docs/', {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': getCSRFToken(),
-                    'Content-Type': 'application/json'
-                }
-            });
-            
-            const data = await response.json();
-            
-            if (response.ok) {
-                alert(data.message);
-                window.location.reload();
-            } else {
-                alert('Error clearing documents: ' + data.message);
+        const response = await fetch('/api/clear-docs/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCSRFToken(),
+                'Content-Type': 'application/json'
             }
-        } catch (error) {
-            console.error('Error:', error);
-            alert('Error clearing documents');
-        } finally {
-            btn.disabled = false;
-            spinner.style.display = 'none';
+        });
+        
+        const data = await response.json();
+        alert(data.message);
+        if (response.ok) {
+            window.location.reload();
         }
     }
 </script>

@@ -431,6 +431,12 @@ def process_all_documents_sequential():
     return "No documents to process"
 
 @shared_task
+def process_all_documents_with_rag():
+    """Process all unprocessed documents with RAG sequentially"""
+    # This is just a wrapper for the sequential processing
+    return process_all_documents_sequential.delay()
+
+@shared_task
 def generate_courses_for_all_documents():
     """Generate courses for all documents sequentially"""
     docs_with_content = GoogleDocument.objects.filter(
@@ -446,3 +452,73 @@ def generate_courses_for_all_documents():
         return f"Started course generation for {len(docs_with_content)} documents"
     
     return "No documents need course generation"
+
+# Add this task at the end of course/tasks.py
+
+@shared_task
+def export_courses_to_json(document_id=None):
+    """Export courses to JSON format"""
+    logger.info(f"Starting course export {'for document ' + str(document_id) if document_id else 'for all documents'}")
+    
+    try:
+        if document_id:
+            # Export specific document's courses
+            doc = GoogleDocument.objects.get(id=document_id)
+            courses = GeneratedCourse.objects.filter(document=doc)
+        else:
+            # Export all courses
+            courses = GeneratedCourse.objects.all()
+        
+        if not courses.exists():
+            logger.warning("No courses found to export")
+            return "No courses to export"
+        
+        export_data = {
+            "courses": [],
+            "export_date": timezone.now().isoformat(),
+            "total_courses": courses.count()
+        }
+        
+        for course in courses:
+            course_data = {
+                "course_name": course.course_name,
+                "role": course.role,
+                "industry": course.industry,
+                "document_title": course.document.title,
+                "topic_description": course.get_topic_description(),
+                "created_at": course.created_at.isoformat(),
+                "lessons": []
+            }
+            
+            for lesson in course.lessons.all():
+                lesson_data = {
+                    "lesson_number": lesson.lesson_number,
+                    "lesson_title": lesson.lesson_title,
+                    "lesson_introduction": lesson.lesson_introduction,
+                    "skill_aims": lesson.get_skill_aims(),
+                    "language_learning_aims": lesson.get_language_learning_aims(),
+                    "lesson_summary": lesson.get_lesson_summary(),
+                    "is_bonus": lesson.is_bonus
+                }
+                course_data["lessons"].append(lesson_data)
+            
+            export_data["courses"].append(course_data)
+        
+        # Save to file
+        timestamp = timezone.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"courses_export_{timestamp}.json"
+        if document_id:
+            filename = f"doc_{document_id}_{timestamp}.json"
+        
+        export_path = settings.BASE_DIR / 'exports' / filename
+        export_path.parent.mkdir(exist_ok=True)
+        
+        with open(export_path, 'w') as f:
+            json.dump(export_data, f, indent=2)
+        
+        logger.info(f"Exported {courses.count()} courses to {export_path}")
+        return f"Exported {courses.count()} courses to {filename}"
+        
+    except Exception as e:
+        logger.error(f"Error exporting courses: {str(e)}")
+        raise
